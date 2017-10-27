@@ -27,7 +27,13 @@
  *
  * on leave channel, discard text until join channel
  *
- * on receive text, display '[channel][username]: text' #something with printing '\b'?
+ * on receive text, save and remove('\b') current typed values, display '[channel][username]: text', replace saved text
+ *
  *
  *
  */
+
+int main(int argc, char *argv[]){
+
+	return 0;
+}
