@@ -19,8 +19,6 @@
 #include <string.h>
 #include <unistd.h>
 
-int CLIENT_PORT = 4000;
-
 /*
  * Spec:
  *
@@ -49,9 +47,8 @@ int CLIENT_PORT = 4000;
  */
 
 int main(int argc, char *argv[]){
-	//set raw mode because it says so
-	raw_mode();
-	atexit(cooked_mode);
+	raw_mode(); //set raw
+	atexit(cooked_mode); //return to cooked on normal exit
 
 	//parse 3 command line arguments. server_socket(address), server_port, username
 	//argc is num args. argv is list of args
@@ -70,7 +67,7 @@ int main(int argc, char *argv[]){
 	char username[25]; 
 
 	server_port = atoi(argv[2]);
-	strncpy(username, argv[3], strlen(argv[3]));
+	strcpy(username, argv[3]);
 
 	if (( sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
 		fprintf(stderr, "ERROR - client: can’t open stream socket\n");
@@ -80,7 +77,6 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "ERROR - client: no such host\n");
 		return 1;
 	}
-
 	if ((client = gethostbyname(argv[1])) == NULL) {
 		fprintf(stderr, "ERROR - client: no such host\n");
 		return 1;
@@ -91,24 +87,32 @@ int main(int argc, char *argv[]){
 	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
 	serv_addr.sin_port = htons(server_port);
 
-	bzero((char *)&client_addr, sizeof(client_addr));
-	client_addr.sin_family = AF_INET;
-	bcopy((char *)client->h_addr, (char *)&client_addr.sin_addr.s_addr, client->h_length);
-	client_addr.sin_port = htons(CLIENT_PORT);
+	//Statically allocate request structs
+	struct request_login req_login;
+	struct request_logout  req_logout;
+	struct request_join req_join;
+	struct request_leave req_leave;
+	struct request_say req_say;
+	struct request_list req_list;
+	struct request_who req_who;
+	struct request_keep_alive req_keep_alive;
 
-	//bind socket to client port number
-	if (bind(sockfd, (struct sockaddr *)&client_addr, sizeof(client_addr)) < 0) {
-		fprintf(stderr, "ERROR - client: bind failed\n");
-		return 1;
-	}
 
-	/* send request to server, receive reply */
-	char *buf = "The Cheese is in The Toaster";
-	sendto(sockfd, buf, strlen(buf)+1, 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr)); //TODO sends garbage
+	//init to chat server - login, join common
+	//login
+	req_login.req_type = REQ_LOGIN;
+	strcpy(req_login.req_username, username);
+	sendto(sockfd, &req_login, sizeof(struct request_login), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr)); //TODO sends garbage
 
-	//connect to chat server
+	//join common
+	req_join.req_type = REQ_JOIN;
+	strcpy(req_join.req_channel, "Common");
+	sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+
+	//while logged in, handle user input, handle server messages
 	char current_char;
-	int active = 1;
+	char cur_channel[32];
+	int logged_in = 1;
 	int input_buff_ctr = 0;
 	int n_flag = 0;
 	int s_flag = 0;
@@ -116,7 +120,7 @@ int main(int argc, char *argv[]){
 	input_buff[0] = '\0';
 
 	printf("> ");
-	while(active){
+	while(logged_in){
 
 		//if server message waiting to be read in (SELECT),
 		if(0){
@@ -134,7 +138,7 @@ int main(int argc, char *argv[]){
 		if (current_char == '\n'){
 			n_flag = 1;
 			if (strcmp(input_buff, "/exit") == 0){
-				active = 0;
+				logged_in = 0;
 			}
 			if (strcmp(input_buff, "/switch") == 0){
 				//handle channel switch
@@ -142,9 +146,18 @@ int main(int argc, char *argv[]){
 			//if --handle other commands--
 
 			else{ //not a command, must be a message to be sent
+				printf("%s", "must send message\n");
+				req_say.req_type = REQ_SAY;
+
+				//get current channel from list of channels //TODO
+				strcpy(cur_channel, "Common");
+
 				//make message from input_buffer
+				strcpy(req_say.req_channel, cur_channel);
+				strcpy(req_say.req_text, input_buff);
 
 				//send message
+				sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 
 				//clear input_buffer
 				input_buff_ctr = 0;
