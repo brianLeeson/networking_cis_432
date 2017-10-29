@@ -60,7 +60,6 @@ int main(int argc, char *argv[]){
 
 	//create socket
 	struct sockaddr_in serv_addr;
-	struct sockaddr_in client_addr;
 	struct hostent *server;
 	struct hostent *client;
 	int sockfd, server_port;
@@ -87,25 +86,28 @@ int main(int argc, char *argv[]){
 	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
 	serv_addr.sin_port = htons(server_port);
 
-	//Statically allocate request structs
+	//Statically allocate request structs and set codes
 	struct request_login req_login;
+	req_login.req_type = REQ_LOGIN;
 	struct request_logout  req_logout;
+	req_logout.req_type = REQ_LOGOUT;
 	struct request_join req_join;
+	req_join.req_type = REQ_JOIN;
 	struct request_leave req_leave;
+	req_leave.req_type = REQ_LEAVE;
 	struct request_say req_say;
+	req_say.req_type = REQ_SAY;
 	struct request_list req_list;
+	req_list.req_type = REQ_LIST;
 	struct request_who req_who;
-	struct request_keep_alive req_keep_alive;
-
+	req_who.req_type = REQ_WHO;
 
 	//init to chat server - login, join common
 	//login
-	req_login.req_type = REQ_LOGIN;
 	strcpy(req_login.req_username, username);
-	sendto(sockfd, &req_login, sizeof(struct request_login), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr)); //TODO sends garbage
+	sendto(sockfd, &req_login, sizeof(struct request_login), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 
 	//join common
-	req_join.req_type = REQ_JOIN;
 	strcpy(req_join.req_channel, "Common");
 	sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 
@@ -137,12 +139,35 @@ int main(int argc, char *argv[]){
 
 		if (current_char == '\n'){
 			n_flag = 1;
-			if (strcmp(input_buff, "/exit") == 0){
+			if (!strcmp(input_buff, "/exit")){
 				logged_in = 0;
 			}
-			if (strcmp(input_buff, "/switch") == 0){
-				//handle channel switch
+			else if (!strcmp(input_buff, "/logout")){
+				sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 			}
+			else if (!strncmp(input_buff, "/join", 5 * sizeof(char))){
+				//parse channel name from input_buff
+				//strcpy(req_join.req_channel, ???);
+				sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+			}
+			else if (!strncmp(input_buff, "/leave", 6 * sizeof(char))){
+				//parse channel name from input_buff
+				//strcpy(req_leave.req_channel, ???);
+				sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+			}
+			else if (!strcmp(input_buff, "/list")){
+				sendto(sockfd, &req_list, sizeof(struct request_list), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+			}
+			else if (!strncmp(input_buff, "/who", 4 * sizeof(char))){
+				//parse channel name from input_buff
+				//strcpy(req_who.req_channel, ???);
+				sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+			}
+			else if (!strcmp(input_buff, "/switch")){
+				//if client is a member of the specified channel, set active channel to be that channel
+				//if not member, display error and don't move channel
+			}
+
 			//if --handle other commands--
 
 			else{ //not a command, must be a message to be sent
@@ -150,6 +175,7 @@ int main(int argc, char *argv[]){
 				req_say.req_type = REQ_SAY;
 
 				//get current channel from list of channels //TODO
+
 				strcpy(cur_channel, "Common");
 
 				//make message from input_buffer
