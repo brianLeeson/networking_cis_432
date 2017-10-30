@@ -5,6 +5,8 @@
  *      Author: brian
  *      Credit:
  *      	help from: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+ *      	This implementation of a DLL is a modified form of the DLL found at:
+ *      	https://www.tutorialspoint.com/data_structures_algorithms/doubly_linked_list_program_in_c.htm
  */
 #include <stdio.h>
 #include "duckchat.h"
@@ -16,8 +18,9 @@
 #include <arpa/inet.h> // Functions for manipulating numeric IP addresses.
 #include <netdb.h> // Functions for translating protocol names and host names into numeric addresses.
 #include <stdlib.h>
-#include <string.h>
+#include <strings.h>
 #include <unistd.h>
+#include "DoublyLinkedList.h"
 
 /*
  * Spec:
@@ -46,6 +49,251 @@
  *
  */
 
+//this link always point to first Link
+struct node *head = NULL;
+
+//this link always point to last Link
+struct node *last = NULL;
+
+struct node *current = NULL;
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+struct node {
+   int data;
+   int key;
+
+   struct node *next;
+   struct node *prev;
+};
+
+
+//is list empty
+bool isEmpty() {
+   return head == NULL;
+}
+
+int length() {
+   int length = 0;
+   struct node *current;
+
+   for(current = head; current != NULL; current = current->next){
+      length++;
+   }
+
+   return length;
+}
+
+//display the list in from first to last
+void displayForward() {
+
+   //start from the beginning
+   struct node *ptr = head;
+
+   //navigate till the end of the list
+   printf("\n[ ");
+
+   while(ptr != NULL) {
+      printf("(%d,%d) ",ptr->key,ptr->data);
+      ptr = ptr->next;
+   }
+
+   printf(" ]");
+}
+
+//display the list from last to first
+void displayBackward() {
+
+   //start from the last
+   struct node *ptr = last;
+
+   //navigate till the start of the list
+   printf("\n[ ");
+
+   while(ptr != NULL) {
+
+      //print data
+      printf("(%d,%d) ",ptr->key,ptr->data);
+
+      //move to next item
+      ptr = ptr ->prev;
+
+   }
+
+}
+
+//insert link at the first location
+void insertFirst(int key, int data) {
+
+   //create a link
+   struct node *link = (struct node*) malloc(sizeof(struct node));
+   link->key = key;
+   link->data = data;
+
+   if(isEmpty()) {
+      //make it the last link
+      last = link;
+   } else {
+      //update first prev link
+      head->prev = link;
+   }
+
+   //point it to old first link
+   link->next = head;
+
+   //point first to new first link
+   head = link;
+}
+
+//insert link at the last location
+void insertLast(int key, int data) {
+
+   //create a link
+   struct node *link = (struct node*) malloc(sizeof(struct node));
+   link->key = key;
+   link->data = data;
+
+   if(isEmpty()) {
+      //make it the last link
+      last = link;
+   } else {
+      //make link a new last link
+      last->next = link;
+
+      //mark old last node as prev of new link
+      link->prev = last;
+   }
+
+   //point last to new last node
+   last = link;
+}
+
+//delete first item
+struct node* deleteFirst() {
+
+   //save reference to first link
+   struct node *tempLink = head;
+
+   //if only one link
+   if(head->next == NULL){
+      last = NULL;
+   } else {
+      head->next->prev = NULL;
+   }
+
+   head = head->next;
+   //return the deleted link
+   return tempLink;
+}
+
+//delete link at the last location
+
+struct node* deleteLast() {
+   //save reference to last link
+   struct node *tempLink = last;
+
+   //if only one link
+   if(head->next == NULL) {
+      head = NULL;
+   } else {
+      last->prev->next = NULL;
+   }
+
+   last = last->prev;
+
+   //return the deleted link
+   return tempLink;
+}
+
+//delete a link with given key
+
+struct node* delete(int key) {
+
+   //start from the first link
+   struct node* current = head;
+   struct node* previous = NULL;
+
+   //if list is empty
+   if(head == NULL) {
+      return NULL;
+   }
+
+   //navigate through list
+   while(current->key != key) {
+      //if it is last node
+
+      if(current->next == NULL) {
+         return NULL;
+      } else {
+         //store reference to current link
+         previous = current;
+
+         //move to next link
+         current = current->next;
+      }
+   }
+
+   //found a match, update the link
+   if(current == head) {
+      //change first to point to next link
+      head = head->next;
+   } else {
+      //bypass the current link
+      current->prev->next = current->next;
+   }
+
+   if(current == last) {
+      //change last to point to prev link
+      last = current->prev;
+   } else {
+      current->next->prev = current->prev;
+   }
+
+   return current;
+}
+
+bool insertAfter(int key, int newKey, int data) {
+   //start from the first link
+   struct node *current = head;
+
+   //if list is empty
+   if(head == NULL) {
+      return false;
+   }
+
+   //navigate through list
+   while(current->key != key) {
+
+      //if it is last node
+      if(current->next == NULL) {
+         return false;
+      } else {
+         //move to next link
+         current = current->next;
+      }
+   }
+
+   //create a link
+   struct node *newLink = (struct node*) malloc(sizeof(struct node));
+   newLink->key = newKey;
+   newLink->data = data;
+
+   if(current == last) {
+      newLink->next = NULL;
+      last = newLink;
+   } else {
+      newLink->next = current->next;
+      current->next->prev = newLink;
+   }
+
+   newLink->prev = current;
+   current->next = newLink;
+   return true;
+}
+
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
@@ -61,7 +309,6 @@ int main(int argc, char *argv[]){
 	//create socket
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
-	struct hostent *client;
 	int sockfd, server_port;
 	char username[25]; 
 
@@ -76,14 +323,10 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "ERROR - client: no such host\n");
 		return 1;
 	}
-	if ((client = gethostbyname(argv[1])) == NULL) {
-		fprintf(stderr, "ERROR - client: no such host\n");
-		return 1;
-	}
 
 	bzero((char *)&serv_addr, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
-	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+	bcopy((char *)server->h_name, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
 	serv_addr.sin_port = htons(server_port);
 
 	//Statically allocate request structs and set codes
@@ -110,6 +353,7 @@ int main(int argc, char *argv[]){
 	//join common
 	strcpy(req_join.req_channel, "Common");
 	sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+
 
 	//while logged in, handle user input, handle server messages
 	char current_char;
@@ -144,28 +388,56 @@ int main(int argc, char *argv[]){
 			}
 			else if (!strcmp(input_buff, "/logout")){
 				sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				//clear input_buffer
+				input_buff_ctr = 0;
+				input_buff[input_buff_ctr+1] = '\0';
 			}
 			else if (!strncmp(input_buff, "/join", 5 * sizeof(char))){
 				//parse channel name from input_buff
-				//strcpy(req_join.req_channel, ???);
+				strcpy(req_join.req_channel, input_buff+6);
 				sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				//clear input_buffer
+				input_buff_ctr = 0;
+				input_buff[input_buff_ctr+1] = '\0';
 			}
 			else if (!strncmp(input_buff, "/leave", 6 * sizeof(char))){
-				//parse channel name from input_buff
-				//strcpy(req_leave.req_channel, ???);
-				sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					//parse channel name from input_buff
+					strcpy(req_leave.req_channel, input_buff+7);
+					sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					//clear input_buffer
+					input_buff_ctr = 0;
+					input_buff[input_buff_ctr+1] = '\0';
 			}
 			else if (!strcmp(input_buff, "/list")){
 				sendto(sockfd, &req_list, sizeof(struct request_list), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				//clear input_buffer
+				input_buff_ctr = 0;
+				input_buff[input_buff_ctr+1] = '\0';
 			}
 			else if (!strncmp(input_buff, "/who", 4 * sizeof(char))){
 				//parse channel name from input_buff
-				//strcpy(req_who.req_channel, ???);
+				printf("%s\n",input_buff+5);
+				strcpy(req_who.req_channel, input_buff+5);
 				sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				//clear input_buffer
+				input_buff_ctr = 0;
+				input_buff[input_buff_ctr+1] = '\0';
 			}
-			else if (!strcmp(input_buff, "/switch")){
-				//if client is a member of the specified channel, set active channel to be that channel
-				//if not member, display error and don't move channel
+			else if (!strncmp(input_buff, "/switch", 7 * sizeof(char))){
+				//if client is a member of the specified channel
+					//set active channel to be that channel
+
+				//else
+					//display error and don't move channel
+					printf("%s", "You have not subscribed to channel ");
+					printf("%s\n", input_buff+8);
+
+				//clear input_buffer
+				input_buff_ctr = 0;
+				input_buff[input_buff_ctr+1] = '\0';
+			}
+			else if(!strncmp(input_buff, "/", sizeof(char))){
+				printf("%s", "*Unknown command\n");
 			}
 
 			//if --handle other commands--

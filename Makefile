@@ -1,6 +1,6 @@
-CC=g++
+CC=gcc
 
-CFLAGS=-Wall -W -g
+CFLAGS=-Wall -W -g -std=c99
 
 
 
