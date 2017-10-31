@@ -48,6 +48,149 @@
  *
  */
 
+//this link always point to first Link
+struct node *head = NULL;
+
+//this link always point to last Link
+struct node *last = NULL;
+
+struct node *current = NULL;
+
+struct node {
+   char data[32];
+
+   struct node *next;
+   struct node *prev;
+};
+
+//is list empty
+bool isEmpty() {
+   return head == NULL;
+}
+
+int length() {
+   int length = 0;
+   struct node *current;
+
+   for(current = head; current != NULL; current = current->next){
+      length++;
+   }
+   return length;
+}
+
+//display the list in from first to last
+void displayForward() {
+
+   //start from the beginning
+   struct node *ptr = head;
+
+   //navigate till the end of the list
+   printf("\n[ ");
+
+   while(ptr != NULL) {
+      printf("(data:%s\n) ", ptr->data);
+      ptr = ptr->next;
+   }
+
+   printf(" ]");
+}
+
+
+//insert link at the last location
+void insertLast(char* data) {
+
+   //create a link
+   struct node *link = (struct node*) malloc(sizeof(struct node));
+   strcpy(link->data, data);
+
+   if(isEmpty()) {
+      //make it the last link
+      last = link;
+   } else {
+      //make link a new last link
+      last->next = link;
+
+      //mark old last node as prev of new link
+      link->prev = last;
+   }
+
+   //point last to new last node
+   last = link;
+}
+
+//delete link at the last location
+
+void deleteLast() {
+   //save reference to last link
+   struct node *tempLink = last;
+
+   //if only one link
+   if(head->next == NULL) {
+      head = NULL;
+   } else {
+      last->prev->next = NULL;
+   }
+
+   last = last->prev;
+
+   //return the deleted link
+   free(tempLink);
+}
+
+//delete a link with given data
+/*
+void delete(char* data) {
+
+   //start from the first link
+   struct node* current = head;
+   struct node* previous = NULL;
+
+   //if list is empty
+   if(head == NULL) {
+      return;
+   }
+
+   //navigate through list
+   while(strcmp(current->data, data)) {
+      //if it is last node
+
+      if(current->next == NULL) {
+         return;
+      } else {
+         //store reference to current link
+         previous = current;
+
+         //move to next link
+         current = current->next;
+      }
+   }
+
+   //found a match, update the link
+   if(current == head) {
+      //change first to point to next link
+      head = head->next;
+   } else {
+      //bypass the current link
+      current->prev->next = current->next;
+   }
+
+   if(current == last) {
+      //change last to point to prev link
+      last = current->prev;
+   } else {
+      current->next->prev = current->prev;
+   }
+   free(current);
+   return;
+}
+*/
+void destroy(){
+	while(isEmpty()){
+		deleteLast();
+	}
+}
+
+
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
