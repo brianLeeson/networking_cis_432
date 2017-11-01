@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/select.h>
 
 /*
  * Spec:
@@ -278,130 +279,140 @@ int main(int argc, char *argv[]){
 	char input_buff[128];
 	input_buff[0] = '\0';
 
+    fd_set s_rd;
+    FD_ZERO(&s_rd);
+    FD_SET(sockfd, &s_rd);
+    FD_SET(fileno(stdin), &s_rd);
+
+    //struct timeval tv;
+    //tv.tv_usec = 50;
+
 	strcpy(cur_channel, DEF_CHAN);
 	printf("> ");
+	fflush(stdout);
 	while(logged_in){
+		//see if any fds are ready
+		//printf("checking for input from server or stdin\n");
+		select(fileno(stdin)+1, &s_rd, NULL, NULL, NULL);
+		// there is a message from the server
+		if (FD_ISSET(0, &s_rd)){
+			//printf("getting from stdin\n");
+			//read and print the next char in stdin
+			current_char = (char)fgetc(stdin);
+			//printf("got from stdin\n");
+			printf("%c", current_char);
 
-		//if server message waiting to be read in (SELECT),
-		if(0){
-			s_flag = 1;
+			if (current_char == '\n'){
+						n_flag = 1;
+						if (!strcmp(input_buff, "/exit")){
+							sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+							logged_in = 0;
+						}
+						else if (!strncmp(input_buff, "/join ", 6 * sizeof(char))){
+							strcpy(cur_channel, input_buff+6);
 
-			//read server message
 
-			//take action
+							//parse channel name from input_buff
+							strcpy(req_join.req_channel, cur_channel);
+							sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+
+							//add to channel list
+							remove(cur_channel); //remove dup
+							insertTail(cur_channel);
+
+							//clear input_buffer
+							input_buff_ctr = 0;
+							input_buff[input_buff_ctr+1] = '\0';
+						}
+						else if (!strncmp(input_buff, "/leave ", 7 * sizeof(char))){
+							//parse channel name from input_buff
+							strcpy(req_leave.req_channel, input_buff+7);
+							sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+
+							remove(input_buff+7);
+
+							//clear input_buffer
+							input_buff_ctr = 0;
+							input_buff[input_buff_ctr+1] = '\0';
+						}
+						else if (!strncmp(input_buff, "/list", 5 * sizeof(char))){
+							sendto(sockfd, &req_list, sizeof(struct request_list), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+							//clear input_buffer
+							input_buff_ctr = 0;
+							input_buff[input_buff_ctr+1] = '\0';
+						}
+						else if (!strncmp(input_buff, "/who", 4 * sizeof(char))){
+							//parse channel name from input_buff
+							strcpy(req_who.req_channel, input_buff+5);
+							sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+							//clear input_buffer
+							input_buff_ctr = 0;
+							input_buff[input_buff_ctr+1] = '\0';
+						}
+						else if (!strncmp(input_buff, "/switch ", 8 * sizeof(char))){
+							//if client is a member of the specified channel
+							if (contains(input_buff+8)){
+								//set active channel to be that channel
+								strcpy(cur_channel, input_buff+8);
+							}
+
+							else{
+								//display error and don't move channel
+								printf("You have not subscribed to channel %s\n", input_buff+8);
+							}
+
+							//clear input_buffer
+							input_buff_ctr = 0;
+							input_buff[input_buff_ctr] = '\0';
+						}
+						else if(!strncmp(input_buff, "/", sizeof(char))){
+							printf("%s", "*Unknown command\n");
+
+							//clear input_buffer
+							input_buff_ctr = 0;
+							input_buff[input_buff_ctr+1] = '\0';
+						}
+
+						else{ //not a command, must be a message to be sent
+							req_say.req_type = REQ_SAY;
+
+							//make message from input_buffer
+							strcpy(req_say.req_channel, cur_channel);
+							strcpy(req_say.req_text, input_buff);
+
+							//send message
+							sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+
+							//clear input_buffer
+							input_buff_ctr = 0;
+							input_buff[input_buff_ctr+1] = '\0';
+						}
+						printf("> ");
+					}
+					else{
+						//put the new char in the buff
+						input_buff[input_buff_ctr++] = current_char;
+						input_buff[input_buff_ctr] = '\0';
+					}
+
+			fflush(stdout);
+		}
+		if (FD_ISSET(sockfd, &s_rd)){
+					printf("<MESSAGE FROM SERVER\n>");
+					fflush(stdout);
 		}
 
-		//read and print the next char in stdin
-		current_char = (char)fgetc(stdin);
-		printf("%c", current_char);
 
-		if (current_char == '\n'){
-			n_flag = 1;
-			if (!strcmp(input_buff, "/exit")){
-				sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-				logged_in = 0;
-			}
-			else if (!strncmp(input_buff, "/join ", 6 * sizeof(char))){
-				strcpy(cur_channel, input_buff+6);
-
-
-				//parse channel name from input_buff
-				strcpy(req_join.req_channel, cur_channel);
-				sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-
-				//add to channel list
-				remove(cur_channel); //remove dup
-				insertTail(cur_channel);
-
-				//clear input_buffer
-				input_buff_ctr = 0;
-				input_buff[input_buff_ctr+1] = '\0';
-			}
-			else if (!strncmp(input_buff, "/leave ", 7 * sizeof(char))){
-					//parse channel name from input_buff
-					strcpy(req_leave.req_channel, input_buff+7);
-					sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-
-					remove(input_buff+7);
-
-					//clear input_buffer
-					input_buff_ctr = 0;
-					input_buff[input_buff_ctr+1] = '\0';
-			}
-			else if (!strncmp(input_buff, "/list", 5 * sizeof(char))){
-				sendto(sockfd, &req_list, sizeof(struct request_list), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-				//clear input_buffer
-				input_buff_ctr = 0;
-				input_buff[input_buff_ctr+1] = '\0';
-			}
-			else if (!strncmp(input_buff, "/who", 4 * sizeof(char))){
-				//parse channel name from input_buff
-				strcpy(req_who.req_channel, input_buff+5);
-				sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-				//clear input_buffer
-				input_buff_ctr = 0;
-				input_buff[input_buff_ctr+1] = '\0';
-			}
-			else if (!strncmp(input_buff, "/switch ", 8 * sizeof(char))){
-				//if client is a member of the specified channel
-				if (contains(input_buff+8)){
-					//set active channel to be that channel
-					strcpy(cur_channel, input_buff+8);
-				}
-
-				else{
-					//display error and don't move channel
-					printf("You have not subscribed to channel %s\n", input_buff+8);
-				}
-
-				//clear input_buffer
-				input_buff_ctr = 0;
-				input_buff[input_buff_ctr+1] = '\0';
-			}
-			else if(!strncmp(input_buff, "/", sizeof(char))){
-				printf("%s", "*Unknown command\n");
-
-				//clear input_buffer
-				input_buff_ctr = 0;
-				input_buff[input_buff_ctr+1] = '\0';
-			}
-
-			else{ //not a command, must be a message to be sent
-				req_say.req_type = REQ_SAY;
-
-				//make message from input_buffer
-				strcpy(req_say.req_channel, cur_channel);
-				strcpy(req_say.req_text, input_buff);
-
-				//send message
-				sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-
-				//clear input_buffer
-				input_buff_ctr = 0;
-				input_buff[input_buff_ctr+1] = '\0';
-			}
-		}
-		else{
-			input_buff[input_buff_ctr++] = current_char;
-			input_buff[input_buff_ctr] = '\0';
-		}
-
-		//if we just typed \n and there are no messages for us from the server
-		if(n_flag && !s_flag){
-			printf("> ");
-		}
-		n_flag=0;
-		s_flag=0;
 	}
 
 
 	//set cooked before return
 	//printf("client closing\n");
-	displayForward();
+	//displayForward();
 	//printf("is empty %d\n", isEmpty());
 	destroyDDL();
 	//printf(" now is empty %d\n", isEmpty());
-	displayForward();
+	//displayForward();
 	return 0;
 }
 
