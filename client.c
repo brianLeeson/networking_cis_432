@@ -51,11 +51,12 @@
 
 //this link always point to first Link
 struct node *head = NULL;
-
 //this link always point to tail Link
 struct node *tail = NULL;
-
 struct node *current = NULL;
+
+int input_buff_ctr = 0;
+char input_buff[SAY_MAX];
 
 struct node {
    char data[32];
@@ -212,6 +213,11 @@ void handleRead(int readResult){
 	}
 }
 
+void clear_input_buff(){
+	input_buff_ctr = 0;
+	input_buff[input_buff_ctr] = '\0';
+}
+
 
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
@@ -283,10 +289,9 @@ int main(int argc, char *argv[]){
 	int UDP_MAX_PAC_SIZE = 65507;
 	char buf[UDP_MAX_PAC_SIZE];
 	int logged_in = 1;
-	int input_buff_ctr = 0;
+
 	int newline_flag = 0;
 	int msg_flag = 0;
-	char input_buff[128];
 	input_buff[0] = '\0';
 	struct text* gen_received_struct;
 	struct text_say* t_say = NULL;
@@ -334,8 +339,7 @@ int main(int argc, char *argv[]){
 							insertTail(cur_channel);
 
 							//clear input_buffer
-							input_buff_ctr = 0;
-							input_buff[input_buff_ctr+1] = '\0';
+							clear_input_buff();
 						}
 						else if (!strncmp(input_buff, "/leave ", 7 * sizeof(char))){
 							//parse channel name from input_buff
@@ -349,24 +353,21 @@ int main(int argc, char *argv[]){
 								inChannel = 0;
 							}
 
-
 							//clear input_buffer
-							input_buff_ctr = 0;
-							input_buff[input_buff_ctr+1] = '\0';
+							clear_input_buff();
 						}
 						else if (!strncmp(input_buff, "/list", 5 * sizeof(char))){
 							sendto(sockfd, &req_list, sizeof(struct request_list), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 							//clear input_buffer
-							input_buff_ctr = 0;
-							input_buff[input_buff_ctr+1] = '\0';
+							clear_input_buff();
 						}
 						else if (!strncmp(input_buff, "/who ", 5 * sizeof(char))){
 							//parse channel name from input_buff
 							strcpy(req_who.req_channel, input_buff+5);
 							sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+
 							//clear input_buffer
-							input_buff_ctr = 0;
-							input_buff[input_buff_ctr+1] = '\0';
+							clear_input_buff();
 						}
 						else if (!strncmp(input_buff, "/switch ", 8 * sizeof(char))){
 							//if client is a member of the specified channel
@@ -381,15 +382,13 @@ int main(int argc, char *argv[]){
 							}
 
 							//clear input_buffer
-							input_buff_ctr = 0;
-							input_buff[input_buff_ctr] = '\0';
+							clear_input_buff();
 						}
 						else if(!strncmp(input_buff, "/", sizeof(char))){
 							printf("%s", "*Unknown command\n");
 
 							//clear input_buffer
-							input_buff_ctr = 0;
-							input_buff[input_buff_ctr+1] = '\0';
+							clear_input_buff();
 						}
 
 						else{ //not a command, must be a message to be sent
@@ -404,8 +403,7 @@ int main(int argc, char *argv[]){
 								sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 							}
 							//clear input_buffer
-							input_buff_ctr = 0;
-							input_buff[input_buff_ctr] = '\0';
+							clear_input_buff();
 						}
 						fflush(stdout);
 					}
@@ -414,13 +412,12 @@ int main(int argc, char *argv[]){
 						input_buff[input_buff_ctr++] = current_char;
 						input_buff[input_buff_ctr] = '\0';
 					}
-
 		}
 
 		if (FD_ISSET(sockfd, &s_rd)){
 			msg_flag = 0;
 
-			//print backspaces to clear
+			//print >32 backspaces to clear
 			printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
 
 			//read what whole UDP packet
@@ -442,18 +439,17 @@ int main(int argc, char *argv[]){
 				printf("Existing channels:\n");
 				int i;
 				for(i = 0; i < t_list->txt_nchannels; i++){
-					printf(" %s\n", (char*)t_list->txt_channels + i);
+					printf(" %s\n", (char*)t_list->txt_channels + (i * CHANNEL_MAX));
 				}
 			}
 
 			//if who
 			else if(gen_received_struct->txt_type == 2){
 				t_who = ((struct text_who*) gen_received_struct);
-				printf("Users on channel Common:\n");
+				printf("Users on channel %s:\n", t_who->txt_channel);
 				int j;
 				for(j=0; j<t_who->txt_nusernames; j++){
-					printf(" %s\n", (char*)t_who->txt_users + j);
-
+					printf(" %s\n", (char*)t_who->txt_users + (j * CHANNEL_MAX));
 				}
 			}
 
@@ -477,8 +473,6 @@ int main(int argc, char *argv[]){
 		}
 		fflush(stdout);
 	}
-
-
 
 	destroyDDL();
 	close(sockfd);
