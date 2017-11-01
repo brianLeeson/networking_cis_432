@@ -235,8 +235,8 @@ int main(int argc, char *argv[]){
 	int sockfd, server_port;
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
-	char username[25]; 
-	char DEF_CHAN[32] = "Common";
+	char username[USERNAME_MAX];
+	char DEFAULT_CHAN[CHANNEL_MAX] = "Common";
 
 	server_port = atoi(argv[2]);
 	strcpy(username, argv[3]);
@@ -279,7 +279,7 @@ int main(int argc, char *argv[]){
 
 	//join common
 	req_join.req_type = REQ_JOIN;
-	strcpy(req_join.req_channel, DEF_CHAN);
+	strcpy(req_join.req_channel, DEFAULT_CHAN);
 	sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 
 	//while logged in, handle user input, handle server messages
@@ -301,7 +301,7 @@ int main(int argc, char *argv[]){
 
     fd_set s_rd;
 
-	strcpy(cur_channel, DEF_CHAN);
+	strcpy(cur_channel, DEFAULT_CHAN);
 	printf("> ");
 	fflush(stdout);
 	while(logged_in){

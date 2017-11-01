@@ -51,15 +51,45 @@ int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
 
+	if (argc != 3){
+		printf("Usage: ./server domain_name port_num\n");
+		return 1;
+	}
+
+	//create server and user lists
 	dll_channels = initDLL();
 	dll_users = initDLL();
 
-	//make sockfd
+	//create socket
+	int sockfd, server_port;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
 
+
+	server_port = atoi(argv[2]);
+
+	if (( sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+			fprintf(stderr, "ERROR - client: can’t open stream socket\n");
+			return 1;
+	}
+	if ((server = gethostbyname(argv[1])) == NULL) {
+		fprintf(stderr, "ERROR - client: no such host\n");
+		return 1;
+	}
 	//bind sockfd
+	bzero((char *)&serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+	serv_addr.sin_port = htons(server_port);
+
+	if(bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
+		fprintf(stderr, "ERROR - server: can't bind socket\n");
+		return 1;
+	}
+
 
 	//while true
-	while(){
+	while(0){
 		//recvfrom sockfd
 
 		//cast generic
@@ -73,5 +103,7 @@ int main(int argc, char *argv[]){
 
 	}
 	printf("server exiting\n");
+	removeAll(dll_channels);
+	removeAll(dll_users);
 	return 0;
 }
