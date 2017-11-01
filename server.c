@@ -37,8 +37,8 @@
  * ignore message from non logged in users
  */
 
-struct DLL* dll_channels;
-struct DLL* dll_users;
+struct node* dll_channels;
+struct node* dll_users;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -54,5 +54,24 @@ int main(int argc, char *argv[]){
 	dll_channels = initDLL();
 	dll_users = initDLL();
 
+	//make sockfd
+
+	//bind sockfd
+
+	//while true
+	while(){
+		//recvfrom sockfd
+
+		//cast generic
+
+		//get type
+
+		//cast type
+
+		//if <type>
+			//action
+
+	}
+	printf("server exiting\n");
 	return 0;
 }
