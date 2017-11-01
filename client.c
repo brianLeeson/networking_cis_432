@@ -278,6 +278,7 @@ int main(int argc, char *argv[]){
 
 	//while logged in, handle user input, handle server messages
 	char current_char;
+	int inChannel = 1;
 	char cur_channel[32];
 	int UDP_MAX_PAC_SIZE = 65507;
 	char buf[UDP_MAX_PAC_SIZE];
@@ -321,8 +322,8 @@ int main(int argc, char *argv[]){
 							newline_flag = 0; //don't print prompt
 						}
 						else if (!strncmp(input_buff, "/join ", 6 * sizeof(char))){
+							inChannel = 1;
 							strcpy(cur_channel, input_buff+6);
-
 
 							//parse channel name from input_buff
 							strcpy(req_join.req_channel, cur_channel);
@@ -342,6 +343,12 @@ int main(int argc, char *argv[]){
 							sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 
 							remove(input_buff+7);
+
+							//if leaving current channel
+							if(!strcmp(input_buff+7,cur_channel)){
+								inChannel = 0;
+							}
+
 
 							//clear input_buffer
 							input_buff_ctr = 0;
@@ -386,15 +393,16 @@ int main(int argc, char *argv[]){
 						}
 
 						else{ //not a command, must be a message to be sent
-							req_say.req_type = REQ_SAY;
+							if(inChannel){
+								req_say.req_type = REQ_SAY;
 
-							//make message from input_buffer
-							strcpy(req_say.req_channel, cur_channel);
-							strcpy(req_say.req_text, input_buff);
+								//make message from input_buffer
+								strcpy(req_say.req_channel, cur_channel);
+								strcpy(req_say.req_text, input_buff);
 
-							//send message
-							sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-
+								//send message
+								sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+							}
 							//clear input_buffer
 							input_buff_ctr = 0;
 							input_buff[input_buff_ctr] = '\0';
