@@ -347,13 +347,11 @@ int main(int argc, char *argv[]){
 				if (contains(input_buff+8)){
 					//set active channel to be that channel
 					strcpy(cur_channel, input_buff+8);
-					printf("active channel is now %s\n", input_buff+8);
 				}
 
 				else{
 					//display error and don't move channel
-					printf("%s", "You have not subscribed to channel ");
-					printf("%s\n", input_buff+8);
+					printf("You have not subscribed to channel %s\n", input_buff+8);
 				}
 
 				//clear input_buffer
@@ -369,7 +367,6 @@ int main(int argc, char *argv[]){
 			}
 
 			else{ //not a command, must be a message to be sent
-				//printf("%s", "must send message\n");
 				req_say.req_type = REQ_SAY;
 
 				//make message from input_buffer
@@ -399,11 +396,11 @@ int main(int argc, char *argv[]){
 
 
 	//set cooked before return
-	printf("client closing\n");
+	//printf("client closing\n");
 	displayForward();
-	printf("is empty %d\n", isEmpty());
+	//printf("is empty %d\n", isEmpty());
 	destroyDDL();
-	printf(" now is empty %d\n", isEmpty());
+	//printf(" now is empty %d\n", isEmpty());
 	displayForward();
 	return 0;
 }
