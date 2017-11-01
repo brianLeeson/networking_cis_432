@@ -219,9 +219,10 @@ int main(int argc, char *argv[]){
 	}
 
 	//create socket
+	int sockfd, server_port, childfd, addr_len;
 	struct sockaddr_in serv_addr;
+	addr_len = sizeof(serv_addr);
 	struct hostent *server;
-	int sockfd, server_port;
 	char username[25]; 
 	char DEF_CHAN[32] = "Common";
 
@@ -272,17 +273,17 @@ int main(int argc, char *argv[]){
 	//while logged in, handle user input, handle server messages
 	char current_char;
 	char cur_channel[32];
+	int TYPE_SIZE = sizeof(text_t);
+	char buf[TYPE_SIZE];
 	int logged_in = 1;
 	int input_buff_ctr = 0;
 	int n_flag = 0;
-	int s_flag = 0;
+	//int s_flag = 0;
 	char input_buff[128];
 	input_buff[0] = '\0';
 
     fd_set s_rd;
-    FD_ZERO(&s_rd);
-    FD_SET(sockfd, &s_rd);
-    FD_SET(fileno(stdin), &s_rd);
+
 
     //struct timeval tv;
     //tv.tv_usec = 50;
@@ -291,16 +292,20 @@ int main(int argc, char *argv[]){
 	printf("> ");
 	fflush(stdout);
 	while(logged_in){
+
+		FD_ZERO(&s_rd);
+		FD_SET(sockfd, &s_rd);
+		FD_SET(fileno(stdin), &s_rd);
+
 		//see if any fds are ready
 		//printf("checking for input from server or stdin\n");
-		select(fileno(stdin)+1, &s_rd, NULL, NULL, NULL);
+		select(sockfd+1, &s_rd, NULL, NULL, NULL);
 		// there is a message from the server
 		if (FD_ISSET(0, &s_rd)){
-			//printf("getting from stdin\n");
 			//read and print the next char in stdin
 			current_char = (char)fgetc(stdin);
-			//printf("got from stdin\n");
 			printf("%c", current_char);
+			fflush(stdout);
 
 			if (current_char == '\n'){
 						n_flag = 1;
@@ -388,6 +393,7 @@ int main(int argc, char *argv[]){
 							input_buff[input_buff_ctr+1] = '\0';
 						}
 						printf("> ");
+						fflush(stdout);
 					}
 					else{
 						//put the new char in the buff
@@ -395,14 +401,40 @@ int main(int argc, char *argv[]){
 						input_buff[input_buff_ctr] = '\0';
 					}
 
+
+		}
+
+		if (FD_ISSET(sockfd, &s_rd)){
+			printf("<MESSAGE FROM SERVER>\n");
+			addr_len = sizeof(serv_addr);
+			/*childfd = accept(sockfd, (struct sockaddr *) &serv_addr, (socklen_t*)&addr_len);
+
+			if (childfd < 0){
+				printf("ERROR on accept\n");
+				exit(0);
+			}*/
+
+			//read what type of message it is by getting first 32 bits
+			int msg_type;
+			bzero(buf, TYPE_SIZE);
+			msg_type = read(sockfd, buf, TYPE_SIZE);
+			if (msg_type < 0){
+				printf("ERROR reading from socket\n");
+				exit(0);
+			}
+			//msg_type = (struct request*)msg_type
+			printf("message type is code %d\n", msg_type);
+			//cast buff as correct struct
+
+			//parse buff
+
+			//display message
+
+			//close(childfd);
 			fflush(stdout);
 		}
-		if (FD_ISSET(sockfd, &s_rd)){
-					printf("<MESSAGE FROM SERVER\n>");
-					fflush(stdout);
-		}
 
-
+		fflush(stdout);
 	}
 
 
@@ -411,6 +443,7 @@ int main(int argc, char *argv[]){
 	//displayForward();
 	//printf("is empty %d\n", isEmpty());
 	destroyDDL();
+	close(sockfd);
 	//printf(" now is empty %d\n", isEmpty());
 	//displayForward();
 	return 0;
