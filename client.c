@@ -205,6 +205,13 @@ void destroyDDL(){
 	}
 }
 
+void handleRead(int readResult){
+	if (readResult < 0){
+		printf("ERROR reading from socket\n");
+		exit(0);
+	}
+}
+
 
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
@@ -219,9 +226,8 @@ int main(int argc, char *argv[]){
 	}
 
 	//create socket
-	int sockfd, server_port, childfd, addr_len;
+	int sockfd, server_port;
 	struct sockaddr_in serv_addr;
-	addr_len = sizeof(serv_addr);
 	struct hostent *server;
 	char username[25]; 
 	char DEF_CHAN[32] = "Common";
@@ -273,20 +279,21 @@ int main(int argc, char *argv[]){
 	//while logged in, handle user input, handle server messages
 	char current_char;
 	char cur_channel[32];
-	int TYPE_SIZE = sizeof(text_t);
-	char buf[TYPE_SIZE];
+	int UDP_MAX_PAC_SIZE = 65507;
+	char buf[UDP_MAX_PAC_SIZE];
 	int logged_in = 1;
 	int input_buff_ctr = 0;
-	int n_flag = 0;
-	//int s_flag = 0;
+	int newline_flag = 0;
+	int msg_flag = 0;
 	char input_buff[128];
 	input_buff[0] = '\0';
+	struct text* gen_received_struct;
+	struct text_say* t_say = NULL;
+	struct text_list* t_list = NULL;
+	struct text_who* t_who = NULL;
+	struct text_error* t_error = NULL;
 
     fd_set s_rd;
-
-
-    //struct timeval tv;
-    //tv.tv_usec = 50;
 
 	strcpy(cur_channel, DEF_CHAN);
 	printf("> ");
@@ -298,7 +305,6 @@ int main(int argc, char *argv[]){
 		FD_SET(fileno(stdin), &s_rd);
 
 		//see if any fds are ready
-		//printf("checking for input from server or stdin\n");
 		select(sockfd+1, &s_rd, NULL, NULL, NULL);
 		// there is a message from the server
 		if (FD_ISSET(0, &s_rd)){
@@ -308,10 +314,11 @@ int main(int argc, char *argv[]){
 			fflush(stdout);
 
 			if (current_char == '\n'){
-						n_flag = 1;
+						newline_flag = 1;
 						if (!strcmp(input_buff, "/exit")){
 							sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 							logged_in = 0;
+							newline_flag = 0; //don't print prompt
 						}
 						else if (!strncmp(input_buff, "/join ", 6 * sizeof(char))){
 							strcpy(cur_channel, input_buff+6);
@@ -346,7 +353,7 @@ int main(int argc, char *argv[]){
 							input_buff_ctr = 0;
 							input_buff[input_buff_ctr+1] = '\0';
 						}
-						else if (!strncmp(input_buff, "/who", 4 * sizeof(char))){
+						else if (!strncmp(input_buff, "/who ", 5 * sizeof(char))){
 							//parse channel name from input_buff
 							strcpy(req_who.req_channel, input_buff+5);
 							sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
@@ -390,9 +397,8 @@ int main(int argc, char *argv[]){
 
 							//clear input_buffer
 							input_buff_ctr = 0;
-							input_buff[input_buff_ctr+1] = '\0';
+							input_buff[input_buff_ctr] = '\0';
 						}
-						printf("> ");
 						fflush(stdout);
 					}
 					else{
@@ -401,51 +407,73 @@ int main(int argc, char *argv[]){
 						input_buff[input_buff_ctr] = '\0';
 					}
 
-
 		}
 
 		if (FD_ISSET(sockfd, &s_rd)){
-			printf("<MESSAGE FROM SERVER>\n");
-			addr_len = sizeof(serv_addr);
-			/*childfd = accept(sockfd, (struct sockaddr *) &serv_addr, (socklen_t*)&addr_len);
+			msg_flag = 0;
 
-			if (childfd < 0){
-				printf("ERROR on accept\n");
-				exit(0);
-			}*/
+			//print backspaces to clear
+			printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
 
-			//read what type of message it is by getting first 32 bits
-			int msg_type;
-			bzero(buf, TYPE_SIZE);
-			msg_type = read(sockfd, buf, TYPE_SIZE);
-			if (msg_type < 0){
-				printf("ERROR reading from socket\n");
-				exit(0);
+			//read what whole UDP packet
+			bzero(buf, UDP_MAX_PAC_SIZE);
+			handleRead(read(sockfd, buf, UDP_MAX_PAC_SIZE));
+
+			//cast as generic type and get code
+			gen_received_struct = (struct text*)buf;
+
+			//if say
+			if(gen_received_struct->txt_type == 0){
+				t_say = ((struct text_say*) gen_received_struct);
+				printf("[%s][%s]: %s\n", t_say->txt_channel, t_say->txt_username, t_say->txt_text);
 			}
-			//msg_type = (struct request*)msg_type
-			printf("message type is code %d\n", msg_type);
-			//cast buff as correct struct
 
-			//parse buff
+			//if list
+			else if(gen_received_struct->txt_type == 1){
+				t_list = ((struct text_list*) gen_received_struct);
+				printf("Existing channels:\n");
+				int i;
+				for(i = 0; i < t_list->txt_nchannels; i++){
+					printf(" %s\n", (char*)t_list->txt_channels + i);
+				}
+			}
 
-			//display message
+			//if who
+			else if(gen_received_struct->txt_type == 2){
+				t_who = ((struct text_who*) gen_received_struct);
+				printf("Users on channel Common:\n");
+				int j;
+				for(j=0; j<t_who->txt_nusernames; j++){
+					printf(" %s\n", (char*)t_who->txt_users + j);
 
-			//close(childfd);
+				}
+			}
+
+			//if error
+			else if(gen_received_struct->txt_type == 3){
+				t_error = ((struct text_error*) gen_received_struct);
+				printf("%s\n", t_error->txt_error);
+			}
+
+			//redisplay input buff
+			printf("> %s", input_buff);
+
 			fflush(stdout);
 		}
 
+		//f newline or message, prompt
+		if (newline_flag || msg_flag){
+			printf("> ");
+			newline_flag = 0;
+			msg_flag = 0;
+		}
 		fflush(stdout);
 	}
 
 
-	//set cooked before return
-	//printf("client closing\n");
-	//displayForward();
-	//printf("is empty %d\n", isEmpty());
+
 	destroyDDL();
 	close(sockfd);
-	//printf(" now is empty %d\n", isEmpty());
-	//displayForward();
 	return 0;
 }
 
