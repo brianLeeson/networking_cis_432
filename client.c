@@ -12,7 +12,7 @@
 #include "duckchat.h"
 #include "raw.h"
 #include <sys/socket.h>
-#include <sys/types.h> // ???
+#include <sys/types.h>
 #include <netinet/in.h> // AF_INET and AF_INET6 address families
 #include <sys/un.h>  // AF_UNIX address family. Used for local communication between programs running on the same computer
 #include <arpa/inet.h> // Functions for manipulating numeric IP addresses.
