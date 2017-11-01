@@ -19,6 +19,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include "listOfLists.h"
 
 /*
  * Spec:
@@ -36,10 +37,8 @@
  * ignore message from non logged in users
  */
 
-struct node *channel_head = NULL;
-struct node *channel_tail = NULL;
-struct node *user_head = NULL;
-struct node *user_tail = NULL;
+struct DLL* dll_channels;
+struct DLL* dll_users;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -51,6 +50,9 @@ void handleRead(int readResult){
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
+
+	dll_channels = initDLL();
+	dll_users = initDLL();
 
 	return 0;
 }
