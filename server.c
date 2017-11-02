@@ -39,6 +39,7 @@
 
 struct node* dll_channels;
 struct node* dll_users;
+int channelSize = 0;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -83,10 +84,10 @@ int main(int argc, char *argv[]){
 	//statically allocate text structs
 	struct text_say t_say;
 	t_say.txt_type = TXT_SAY;
-	struct text_list t_list;
-	t_list.txt_type = TXT_LIST;
-	struct text_who t_who;
-	t_who.txt_type = TXT_WHO;
+	//struct text_list t_list;
+	//t_list.txt_type = TXT_LIST;
+	//struct text_who t_who;
+	//t_who.txt_type = TXT_WHO;
 	struct text_error t_error;
 	t_error.txt_type = TXT_ERROR;
 
@@ -113,36 +114,60 @@ int main(int argc, char *argv[]){
 	while(1){
 		//recvfrom sockfd
 		recvlen = recvfrom(sockfd, incoming_buff, MAX_REQ_SIZE, 0, (struct sockaddr *)&serv_addr, &addrlen);
-		//printf("Something came in\n");
 
 		//cast generic
 		gen_request_struct = (struct request*) incoming_buff;
 
 		//get type and cast to specific type
-		//printf("type is %d\n", gen_request_struct->req_type);
+		printf("\tincoming pac is type %d\n", gen_request_struct->req_type);
+		printf("\tfrom port: %d\n", serv_addr.sin_port);
+		printf("\tfrom IP: %d\n", serv_addr.sin_addr.s_addr);
 		req_type = gen_request_struct->req_type;
 		switch(req_type){
-			case 0:
+			case 0: {//login
 				r_login = (struct request_login*) gen_request_struct;
 
 				//take action - Add user to user list
-				append(r_login->req_username, dll_users, &serv_addr);
+				struct node* tempNode;
+				tempNode = append(r_login->req_username, dll_users, &serv_addr);
+				if(tempNode == NULL){
+					printf("error adding to user list\n");
+				}
 
 				printf("server: %s logs in\n", r_login->req_username);
 				break;
-			case 1:
+			}
+			case 1:{//logout
 				r_logout = (struct request_logout*) gen_request_struct;
+				//printf("pre remove\n");
+				//take action - remove user from user list and every channel they are in. remove empty channels
+				remove_user(dll_users, &serv_addr);
+				//printf("post remove\n");
 
-				//take action - remove user from user list and every channel they are in
+				//remove user from all channels
+				struct node* channelNode;
+				channelNode = dll_channels->next;
+				while(channelNode != NULL){ //remove user if contained in channel
+					remove_user(channelNode, &serv_addr);
+
+					//if channel has no users, remove channel
+					if(channelNode->inner == NULL){
+						remove_channel(channelNode->data, dll_users);
+					}
+					channelNode = channelNode->next;
+				}
+
+
 
 
 				break;
-			case 2:
+			}
+			case 2: {//join
 				r_join = (struct request_join*) gen_request_struct;
 				struct node* tempNode;
 				char tempBuff[USERNAME_MAX];
 
-				//if user not logged in
+				//if user not logged in TODO move out of switch
 				if ((tempNode = find_user(dll_users, &serv_addr)) == NULL){
 					//send error
 					strcpy(t_error.txt_error, "Not logged in");
@@ -160,37 +185,107 @@ int main(int argc, char *argv[]){
 
 					//create channel
 					tempNode = append(r_join->req_channel, dll_channels, NULL);
+
+					channelSize++;
 				}
-				else{
-					//printf("channel does exist\n");
-				}
-				// otherwise channel is created, append user to it
+				//else channel exists
+
+				//finally channel is created, append user to it
 				append(tempBuff, tempNode->inner, &serv_addr);
 
 				printf("server: %s joins channel %s\n", tempBuff, tempNode->data);
 				break;
-			case 3:
+			}
+			case 3: {//leave
 				r_leave = (struct request_leave*) gen_request_struct;
+
+				//check if logged in
+				struct node* tempNode;
+				if ((tempNode = find_user(dll_users, &serv_addr)) == NULL){
+					//if not, send error
+					strcpy(t_error.txt_error, "Not logged in");
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					break;
+				}
+
 				//take action -
 
 				break;
-			case 4:
+			}
+			case 4: {//say
 				r_say = (struct request_say*) gen_request_struct;
+
+				//check if logged in
+				struct node* tempNode;
+				if ((tempNode = find_user(dll_users, &serv_addr)) == NULL){
+					//if not, send error
+					strcpy(t_error.txt_error, "Not logged in");
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					break;
+				}
+
 				//take action -
 
 				break;
-			case 5:
+			}
+			case 5: {//list
 				r_list = (struct request_list*) gen_request_struct;
+
+				//check if logged in
+				struct node* tempNode;
+				if ((tempNode = find_user(dll_users, &serv_addr)) == NULL){
+					//if not, send error
+					strcpy(t_error.txt_error, "Not logged in");
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					break;
+				}
+
+				//take action - send a list all channels
+				struct node* currentNode = dll_channels->next;
+				int structSize = sizeof(struct text_list) + (channelSize * sizeof(struct channel_info));
+				struct text_list* t_list = (struct text_list*)malloc(structSize);
+				if (t_list == NULL){
+					fprintf(stderr,"failed malloc\n");
+					continue;
+				}
+
+				t_list->txt_type = TXT_LIST;
+				t_list->txt_nchannels = channelSize;
+
+				int i = 0;
+				while(currentNode != NULL){
+					//printf("cur channel data is %s\n", currentNode->data);
+					strcpy(t_list->txt_channels[i].ch_channel, currentNode->data);
+					//printf("ith item is %s\n", t_list->txt_channels[i].ch_channel);
+					currentNode = currentNode->next;
+					i++;
+				}
+
+				//send to whoever just asked for list
+				sendto(sockfd, t_list, structSize, 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				free(t_list);
+
+				break;
+			}
+			case 6:{ //who
+				r_who = (struct request_who*) gen_request_struct;
+
+				//check if logged in
+				struct node* tempNode;
+				if ((tempNode = find_user(dll_users, &serv_addr)) == NULL){
+					//if not, send error
+					strcpy(t_error.txt_error, "Not logged in");
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					break;
+				}
+
 				//take action -
 
 				break;
-			case 6:
-				r_say = (struct request_say*) gen_request_struct;
-				//take action -
-
-				break;
-			default:
+			}
+			default:{
 				fprintf(stderr, "ERROR - server: no matching req type\n");
+			}
 		}
 
 		//???
