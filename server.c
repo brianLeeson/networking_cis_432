@@ -131,39 +131,45 @@ int main(int argc, char *argv[]){
 				struct node* tempNode;
 				tempNode = append(r_login->req_username, dll_users, &serv_addr);
 				if(tempNode == NULL){
+					displayData(dll_users);
 					printf("error adding to user list\n");
 				}
 
-				printf("server: %s logs in\n", r_login->req_username);
+				printf("\tserver: %s logs in\n", r_login->req_username);
 				break;
 			}
-			case 1:{//logout
+			case 1: {//logout
+				printf("\tbefore logout, channel looks like");
+				displayData(dll_channels);
+				printf("\tbefore logout, users looks like");
+				displayData(dll_users);
+
 				r_logout = (struct request_logout*) gen_request_struct;
 				//printf("pre remove\n");
 				//take action - remove user from user list and every channel they are in. remove empty channels
-				printf("removing user from user list\n");
-				displayData(dll_users);
 				remove_user(dll_users, &serv_addr);
-				displayData(dll_users);
+
 				//printf("post remove\n");
 
 				//remove user from all channels
 				struct node* channelNode;
 				channelNode = dll_channels->next;
 				while(channelNode != NULL){ //remove user if contained in channel
-					printf("removing user from each channel\n");
-					displayData(channelNode);
+					printf("\tremoving user from each channel\n");
+					//displayData(channelNode);
 					remove_user(channelNode->inner, &serv_addr);
 
 					//if channel has no users, remove channel
-					if(channelNode->inner == NULL){
-						printf("removing empty channels\n");
-						remove_channel(channelNode->data, dll_users);
+					if(channelNode->inner->next == NULL){
+						printf("\tremoving empty channel named: %s\n", channelNode->data);
+						remove_channel(channelNode->data, dll_channels);
 					}
 					channelNode = channelNode->next;
 				}
-
-
+				printf("\tafter logout, channel list looks like");
+				displayData(dll_channels);
+				printf("\tafter logout, users looks like");
+				displayData(dll_users);
 
 
 				break;
@@ -187,7 +193,7 @@ int main(int argc, char *argv[]){
 
 				//if channel not created
 				if((tempNode = find_channel(r_join->req_channel, dll_channels)) == NULL){
-					printf("channel doesn't exist. creating\n");
+					printf("\tchannel doesn't exist. creating\n");
 
 					//create channel
 					tempNode = append(r_join->req_channel, dll_channels, NULL);
@@ -196,12 +202,12 @@ int main(int argc, char *argv[]){
 				}
 
 				//else channel exists
-				printf("channel exists\n");
+				//printf("channel exists\n");
 
 				//finally channel is created, append user to it
 				append(tempBuff, tempNode->inner, &serv_addr);
 
-				printf("server: %s joins channel %s\n", tempBuff, tempNode->data);
+				printf("\tserver: %s joins channel %s\n", tempBuff, tempNode->data);
 				break;
 			}
 			case 3: {//leave
