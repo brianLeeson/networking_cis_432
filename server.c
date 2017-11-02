@@ -55,7 +55,6 @@ int main(int argc, char *argv[]){
 		printf("Usage: ./server domain_name port_num\n");
 		return 1;
 	}
-
 	//create server and user lists
 	dll_channels = initDLL();
 	dll_users = initDLL();
@@ -82,14 +81,14 @@ int main(int argc, char *argv[]){
 	struct request_who* r_who = NULL;
 
 	//statically allocate text structs
-	struct text_say* t_say = NULL;
-	t_say->txt_type = TXT_SAY;
-	struct text_list* t_list = NULL;
-	t_list->txt_type = TXT_LIST;
-	struct text_who* t_who = NULL;
-	t_who->txt_type = TXT_WHO;
-	struct text_error* t_error = NULL;
-	t_error->txt_type = TXT_ERROR;
+	struct text_say t_say;
+	t_say.txt_type = TXT_SAY;
+	struct text_list t_list;
+	t_list.txt_type = TXT_LIST;
+	struct text_who t_who;
+	t_who.txt_type = TXT_WHO;
+	struct text_error t_error;
+	t_error.txt_type = TXT_ERROR;
 
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
 			fprintf(stderr, "ERROR - server: can’t open stream socket\n");
@@ -109,7 +108,6 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "ERROR - server: can't bind socket\n");
 		return 1;
 	}
-
 
 	//while true
 	while(1){
@@ -147,9 +145,9 @@ int main(int argc, char *argv[]){
 				//if user not logged in
 				if ((tempNode = find_user(dll_users, &serv_addr)) == NULL){
 					//send error
-					strcpy(t_error->txt_error, "Not logged in");
+					strcpy(t_error.txt_error, "Not logged in");
 					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-					printf("user not logged in\n");
+					//printf("user not logged in\n");
 					break;
 				}
 
@@ -158,13 +156,13 @@ int main(int argc, char *argv[]){
 
 				//if channel not created
 				if((tempNode = find_channel(r_join->req_channel, dll_channels)) == NULL){
-					printf("channel doesn't exist. creating\n");
+					//printf("channel doesn't exist. creating\n");
 
 					//create channel
 					tempNode = append(r_join->req_channel, dll_channels, NULL);
 				}
 				else{
-					printf("channel does exist\n");
+					//printf("channel does exist\n");
 				}
 				// otherwise channel is created, append user to it
 				append(tempBuff, tempNode->inner, &serv_addr);
