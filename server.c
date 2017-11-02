@@ -141,17 +141,23 @@ int main(int argc, char *argv[]){
 				r_logout = (struct request_logout*) gen_request_struct;
 				//printf("pre remove\n");
 				//take action - remove user from user list and every channel they are in. remove empty channels
+				printf("removing user from user list\n");
+				displayData(dll_users);
 				remove_user(dll_users, &serv_addr);
+				displayData(dll_users);
 				//printf("post remove\n");
 
 				//remove user from all channels
 				struct node* channelNode;
 				channelNode = dll_channels->next;
 				while(channelNode != NULL){ //remove user if contained in channel
-					remove_user(channelNode, &serv_addr);
+					printf("removing user from each channel\n");
+					displayData(channelNode);
+					remove_user(channelNode->inner, &serv_addr);
 
 					//if channel has no users, remove channel
 					if(channelNode->inner == NULL){
+						printf("removing empty channels\n");
 						remove_channel(channelNode->data, dll_users);
 					}
 					channelNode = channelNode->next;
@@ -181,14 +187,16 @@ int main(int argc, char *argv[]){
 
 				//if channel not created
 				if((tempNode = find_channel(r_join->req_channel, dll_channels)) == NULL){
-					//printf("channel doesn't exist. creating\n");
+					printf("channel doesn't exist. creating\n");
 
 					//create channel
 					tempNode = append(r_join->req_channel, dll_channels, NULL);
 
 					channelSize++;
 				}
+
 				//else channel exists
+				printf("channel exists\n");
 
 				//finally channel is created, append user to it
 				append(tempBuff, tempNode->inner, &serv_addr);
