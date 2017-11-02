@@ -8,10 +8,10 @@ ARGS_S = localhost 3000
 all: client server
 
 client: client.c raw.c
-	$(CC) client.c raw.c $(CFLAGS) -o client
+	$(CC) client.c raw.c listOfLists.h $(CFLAGS) -o client
 
 server: server.c 
-	$(CC) server.c raw.c $(CFLAGS) -o server
+	$(CC) server.c raw.c listOfLists.h $(CFLAGS) -o server
 
 clean:
 	rm -f client server *.o

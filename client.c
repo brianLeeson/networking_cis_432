@@ -456,7 +456,7 @@ int main(int argc, char *argv[]){
 			//if error
 			else if(gen_received_struct->txt_type == 3){
 				t_error = ((struct text_error*) gen_received_struct);
-				printf("%s\n", t_error->txt_error);
+				printf("Error: %s\n", t_error->txt_error);
 			}
 
 			//redisplay input buff

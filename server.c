@@ -62,18 +62,41 @@ int main(int argc, char *argv[]){
 
 	//create socket
 	int sockfd, server_port;
+	server_port = atoi(argv[2]);
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
+	int MAX_REQ_SIZE = sizeof(struct request_say); //should be 128
+	char incoming_buff[MAX_REQ_SIZE];
+	int recvlen; //size of message read
+	socklen_t addrlen = sizeof(serv_addr);
+	int req_type = -1;
 
+	//statically allocate request structs
+	struct request* gen_request_struct;
+	struct request_login* r_login = NULL;
+	struct request_logout* r_logout = NULL;
+	struct request_join* r_join = NULL;
+	struct request_leave* r_leave = NULL;
+	struct request_say* r_say = NULL;
+	struct request_list* r_list = NULL;
+	struct request_who* r_who = NULL;
 
-	server_port = atoi(argv[2]);
+	//statically allocate text structs
+	struct text_say* t_say = NULL;
+	t_say->txt_type = TXT_SAY;
+	struct text_list* t_list = NULL;
+	t_list->txt_type = TXT_LIST;
+	struct text_who* t_who = NULL;
+	t_who->txt_type = TXT_WHO;
+	struct text_error* t_error = NULL;
+	t_error->txt_type = TXT_ERROR;
 
-	if (( sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-			fprintf(stderr, "ERROR - client: can’t open stream socket\n");
+	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+			fprintf(stderr, "ERROR - server: can’t open stream socket\n");
 			return 1;
 	}
 	if ((server = gethostbyname(argv[1])) == NULL) {
-		fprintf(stderr, "ERROR - client: no such host\n");
+		fprintf(stderr, "ERROR - server: no such host\n");
 		return 1;
 	}
 	//bind sockfd
@@ -89,17 +112,90 @@ int main(int argc, char *argv[]){
 
 
 	//while true
-	while(0){
+	while(1){
 		//recvfrom sockfd
+		recvlen = recvfrom(sockfd, incoming_buff, MAX_REQ_SIZE, 0, (struct sockaddr *)&serv_addr, &addrlen);
+		//printf("Something came in\n");
 
 		//cast generic
+		gen_request_struct = (struct request*) incoming_buff;
 
-		//get type
+		//get type and cast to specific type
+		//printf("type is %d\n", gen_request_struct->req_type);
+		req_type = gen_request_struct->req_type;
+		switch(req_type){
+			case 0:
+				r_login = (struct request_login*) gen_request_struct;
 
-		//cast type
+				//take action - Add user to user list
+				append(r_login->req_username, dll_users, &serv_addr);
 
-		//if <type>
-			//action
+				printf("server: %s logs in\n", r_login->req_username);
+				break;
+			case 1:
+				r_logout = (struct request_logout*) gen_request_struct;
+
+				//take action - remove user from user list and every channel they are in
+
+
+				break;
+			case 2:
+				r_join = (struct request_join*) gen_request_struct;
+				struct node* tempNode;
+				char tempBuff[USERNAME_MAX];
+
+				//if user not logged in
+				if ((tempNode = find_user(dll_users, &serv_addr)) == NULL){
+					//send error
+					strcpy(t_error->txt_error, "Not logged in");
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					printf("user not logged in\n");
+					break;
+				}
+
+				//get user name of join request
+				strcpy(tempBuff, tempNode->data);
+
+				//if channel not created
+				if((tempNode = find_channel(r_join->req_channel, dll_channels)) == NULL){
+					printf("channel doesn't exist. creating\n");
+
+					//create channel
+					tempNode = append(r_join->req_channel, dll_channels, NULL);
+				}
+				else{
+					printf("channel does exist\n");
+				}
+				// otherwise channel is created, append user to it
+				append(tempBuff, tempNode->inner, &serv_addr);
+
+				printf("server: %s joins channel %s\n", tempBuff, tempNode->data);
+				break;
+			case 3:
+				r_leave = (struct request_leave*) gen_request_struct;
+				//take action -
+
+				break;
+			case 4:
+				r_say = (struct request_say*) gen_request_struct;
+				//take action -
+
+				break;
+			case 5:
+				r_list = (struct request_list*) gen_request_struct;
+				//take action -
+
+				break;
+			case 6:
+				r_say = (struct request_say*) gen_request_struct;
+				//take action -
+
+				break;
+			default:
+				fprintf(stderr, "ERROR - server: no matching req type\n");
+		}
+
+		//???
 
 	}
 	printf("server exiting\n");
