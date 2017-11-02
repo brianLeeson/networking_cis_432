@@ -317,8 +317,47 @@ int main(int argc, char *argv[]){
 					break;
 				}
 
-				//take action -
+				struct node* channelNode;
+				struct node* userNode;
 
+				channelNode = find_channel(r_who->req_channel, dll_channels);
+				if(channelNode == NULL){
+					printf("server: %s trying to list users in non-existing channel %s\n", currentUserNode->data, r_who->req_channel);
+					strcpy(t_error.txt_error, "No channel by the name ");
+					strcat(t_error.txt_error, r_who->req_channel);
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					break;
+				}
+
+				int numInChannel = channelNode->inner->usersInChannel;
+				printf("\tnum user in %s is %d\n", channelNode->data, numInChannel);
+
+				//take action - send channel name and list of every user in that channel
+				int structSize = sizeof(struct text_who) + (numInChannel * sizeof(struct user_info));
+				struct text_who* t_who = (struct text_who*)malloc(structSize);
+				if (t_who == NULL){
+					fprintf(stderr,"failed malloc\n");
+					continue;
+				}
+
+				t_who->txt_type = TXT_WHO;
+				strcpy(t_who->txt_channel, r_who->req_channel);
+				t_who->txt_nusernames =numInChannel;
+
+				int i = 0;
+				userNode = channelNode->inner->next;
+				while(userNode != NULL){
+					//printf("cur channel data is %s\n", currentNode->data);
+					strcpy(t_who->txt_users[i].us_username, userNode->data);
+					//printf("ith item is %s\n", t_list->txt_channels[i].ch_channel);
+					userNode = userNode->next;
+					i++;
+				}
+
+				//send to whoever just asked for list
+				sendto(sockfd, t_who, structSize, 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				printf("\tfreeing\n");
+				free(t_who);
 				break;
 			}
 			default:{
