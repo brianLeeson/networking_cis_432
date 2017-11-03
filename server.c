@@ -4,8 +4,10 @@
  *  Created on: Oct 26, 2017
  *      Author: brian
  *      Credit: Conceptual help from classmates: Anisha, Amie and Kaley
+ *      This implementation of a DLL is a *heavily* modified form of the DLL found at:
+ *     	https://www.tutorialspoint.com/data_structures_algorithms/doubly_linked_list_program_in_c.htm
  */
-//#include "listOfLists.h"
+
 #include <stdio.h>
 #include "duckchat.h"
 #include "raw.h"
@@ -20,22 +22,6 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include "listOfLists.h"
-
-/*
- * Spec:
- * read 2 command line arg
- *
- * output logging info when server takes action.
- * on receive message, print [channel][user][message]
- *
- * on say request send [message] to all [user] in [channel]
- *
- * keep track of each channel and all users in each channel
- *
- * when channel has no users, delete. when users joins void channel, create.
- *
- * ignore message from non logged in users
- */
 
 struct node* dll_channels;
 struct node* dll_users;
@@ -66,7 +52,6 @@ int main(int argc, char *argv[]){
 	struct hostent *server;
 	int MAX_REQ_SIZE = sizeof(struct request_say); //should be 128
 	char incoming_buff[MAX_REQ_SIZE];
-	int recvlen; //size of message read
 	socklen_t addrlen = sizeof(serv_addr);
 	int req_type = -1;
 	struct node* currentUserNode;
@@ -74,20 +59,14 @@ int main(int argc, char *argv[]){
 	//statically allocate request structs
 	struct request* gen_request_struct;
 	struct request_login* r_login = NULL;
-	struct request_logout* r_logout = NULL;
 	struct request_join* r_join = NULL;
 	struct request_leave* r_leave = NULL;
 	struct request_say* r_say = NULL;
-	struct request_list* r_list = NULL;
 	struct request_who* r_who = NULL;
 
 	//statically allocate text structs
 	struct text_say t_say;
 	t_say.txt_type = TXT_SAY;
-	//struct text_list t_list;
-	//t_list.txt_type = TXT_LIST;
-	//struct text_who t_who;
-	//t_who.txt_type = TXT_WHO;
 	struct text_error t_error;
 	t_error.txt_type = TXT_ERROR;
 
@@ -113,32 +92,29 @@ int main(int argc, char *argv[]){
 	//while true
 	while(1){
 		//recvfrom sockfd
-		recvlen = recvfrom(sockfd, incoming_buff, MAX_REQ_SIZE, 0, (struct sockaddr *)&serv_addr, &addrlen);
+		recvfrom(sockfd, incoming_buff, MAX_REQ_SIZE, 0, (struct sockaddr *)&serv_addr, &addrlen);
 
 		//cast generic
 		gen_request_struct = (struct request*) incoming_buff;
 
 		//get type and cast to specific type
-		//printf("\tincoming pac is type %d\n", gen_request_struct->req_type);
-		//printf("\tfrom port: %d\n", serv_addr.sin_port);
-		//printf("\tfrom IP: %d\n", serv_addr.sin_addr.s_addr);
 		req_type = gen_request_struct->req_type;
 
-		//set log in flag
+		//set login flag
 		loggedIn = 1;
 		if ((currentUserNode = find_user(dll_users, &serv_addr)) == NULL){
 			loggedIn = 0;
 		}
 
 		switch(req_type){
-			case REQ_LOGIN: {//login
+			case REQ_LOGIN: { //login
 				r_login = (struct request_login*) gen_request_struct;
 
 				//take action - Add user to user list
 				struct node* tempNode;
 				tempNode = append(r_login->req_username, dll_users, &serv_addr);
 				if(tempNode == NULL){
-					printf("error adding to user list\n");
+					printf("server: error adding to user list\n");
 					break;
 				}
 
@@ -146,12 +122,11 @@ int main(int argc, char *argv[]){
 				dll_users->numNodesInList++;
 				break;
 			}
-			case REQ_LOGOUT: {//logout
+			case REQ_LOGOUT: { //logout
 				if(!loggedIn){
 					break;
 				}
-
-				r_logout = (struct request_logout*) gen_request_struct;
+				printf("server: %s logs out\n", currentUserNode->data);
 
 				//take action - remove user from user list and every channel they are in. remove empty channels
 				remove_user(dll_users, &serv_addr);
@@ -171,7 +146,7 @@ int main(int argc, char *argv[]){
 
 				break;
 			}
-			case REQ_JOIN: {//join
+			case REQ_JOIN: { //join
 				r_join = (struct request_join*) gen_request_struct;
 				struct node* tempNode;
 				char tempBuff[USERNAME_MAX];
@@ -188,14 +163,9 @@ int main(int argc, char *argv[]){
 
 				//if channel not created
 				if((tempNode = find_channel(r_join->req_channel, dll_channels)) == NULL){
-//					printf("\tchannel doesn't exist. creating\n");
-
 					//create channel
 					tempNode = append(r_join->req_channel, dll_channels, NULL);
 				}
-
-				//now channel exists
-				//printf("channel exists\n");
 
 				//finally channel is created, append user to it
 				append(tempBuff, tempNode->inner, &serv_addr);
@@ -203,7 +173,7 @@ int main(int argc, char *argv[]){
 				printf("server: %s joins channel %s\n", tempBuff, tempNode->data);
 				break;
 			}
-			case REQ_LEAVE: {//leave
+			case REQ_LEAVE: { //leave
 				r_leave = (struct request_leave*) gen_request_struct;
 
 				//if user not logged in
@@ -225,8 +195,6 @@ int main(int argc, char *argv[]){
 					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 					break;
 				}
-				printf("\tchannel users are: ");
-				displayData(channelNode->inner->next);
 
 				//remove user from channel
 				if(remove_user(channelNode->inner, currentUserNode->serv_addr) == 0){
@@ -235,9 +203,6 @@ int main(int argc, char *argv[]){
 					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 					break;
 				}
-
-				printf("server: %s leaves channel %s\n", currentUserNode->data, r_leave->req_channel);
-
 
 				channelNode = dll_channels->next;
 				//remove empty channels
@@ -248,10 +213,11 @@ int main(int argc, char *argv[]){
 					}
 					channelNode = channelNode->next;
 				}
+				printf("server: %s leaves channel %s\n", currentUserNode->data, r_leave->req_channel);
 
 				break;
 			}
-			case REQ_SAY: {//say
+			case REQ_SAY: { //say
 				r_say = (struct request_say*) gen_request_struct;
 
 				//if user not logged in
@@ -292,16 +258,9 @@ int main(int argc, char *argv[]){
 					userNode = userNode->next;
 				}
 
-
-				printf("\tchannels look like: ");
-				displayData(dll_channels->next);
-				printf("\tusers look like: ");
-				displayData(dll_users->next);
 				break;
 			}
-			case REQ_LIST: {//list
-				r_list = (struct request_list*) gen_request_struct;
-
+			case REQ_LIST: { //list
 				//if user not logged in
 				if(!loggedIn){
 					strcpy(t_error.txt_error, "Not logged in");
@@ -390,11 +349,9 @@ int main(int argc, char *argv[]){
 				fprintf(stderr, "ERROR - server: no matching req type\n");
 			}
 		}
-
-		//???
-
 	}
-	printf("server exiting\n");
+
+	printf("server exiting. This should not normally happen.\n");
 	removeAll(dll_channels);
 	removeAll(dll_users);
 	return 0;
