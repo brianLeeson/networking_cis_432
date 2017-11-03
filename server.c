@@ -249,6 +249,7 @@ int main(int argc, char *argv[]){
 					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 				}
 
+				printf("server: %s sends say message in %s\n",currentUserNode->data ,r_say->req_channel);
 				while(userNode != NULL){ //send say to each user in channel
 					t_say.txt_type = TXT_SAY;
 					strcpy(t_say.txt_channel, r_say->req_channel);

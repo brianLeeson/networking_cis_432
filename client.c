@@ -132,14 +132,14 @@ int contains(char* data){
 }
 
 //remove a link with given data
-void* remove(char* data) {
+void remove(char* data) {
 
    //start from the first link
    struct node* current = head;
 
    //if list is empty
    if(head == NULL) {
-      return NULL;
+      return;
    }
 
    //navigate through list
@@ -147,7 +147,7 @@ void* remove(char* data) {
       //if it is tail node
 
       if(current->next == NULL) {
-         return NULL;
+         return;
       } else {
          //move to next link
          current = current->next;
@@ -170,7 +170,7 @@ void* remove(char* data) {
       current->next->prev = current->prev;
    }
    free(current);
-   return NULL;
+   return;
 }
 
 void destroyDDL(){
@@ -289,154 +289,161 @@ int main(int argc, char *argv[]){
 		if (FD_ISSET(0, &s_rd)){
 			//read and print the next char in stdin
 			current_char = (char)fgetc(stdin);
-			printf("%c", current_char);
+
 			fflush(stdout);
 
+			if(input_buff_ctr >= (SAY_MAX-1)){ //leave room for '\0'
+
+				while(current_char != '\n'){//while cur char is not '\n'
+					current_char = (char)fgetc(stdin);
+				}
+				printf("\n");
+			}
 			if (current_char == '\n'){
-						newline_flag = 1;
-						if (!strcmp(input_buff, "/exit")){
-							sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-							logged_in = 0;
-							newline_flag = 0; //don't print prompt
-						}
-						else if (!strncmp(input_buff, "/join ", 6 * sizeof(char))){
-							inChannel = 1;
-							strcpy(cur_channel, input_buff+6);
+				newline_flag = 1;
+				if (!strcmp(input_buff, "/exit")){
+					sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					logged_in = 0;
+					newline_flag = 0; //don't print prompt
+				}
+				else if (!strncmp(input_buff, "/join ", 6 * sizeof(char))){
+					inChannel = 1;
+					strcpy(cur_channel, input_buff+6);
 
-							//parse channel name from input_buff
-							strcpy(req_join.req_channel, cur_channel);
-							sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					//parse channel name from input_buff
+					strcpy(req_join.req_channel, cur_channel);
+					sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 
-							//add to channel list
-							remove(cur_channel); //remove dup
-							insertTail(cur_channel);
+					//add to channel list
+					remove(cur_channel); //remove dup
+					insertTail(cur_channel);
 
-							//clear input_buffer
-							clear_input_buff();
-						}
-						else if (!strncmp(input_buff, "/leave ", 7 * sizeof(char))){
-							//parse channel name from input_buff
-							strcpy(req_leave.req_channel, input_buff+7);
-							sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					//clear input_buffer
+					clear_input_buff();
+				}
+				else if (!strncmp(input_buff, "/leave ", 7 * sizeof(char))){
+					//parse channel name from input_buff
+					strcpy(req_leave.req_channel, input_buff+7);
+					sendto(sockfd, &req_leave, sizeof(struct request_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 
-							remove(input_buff+7);
+					remove(input_buff+7);
 
-							//if leaving current channel
-							if(!strcmp(input_buff+7,cur_channel)){
-								inChannel = 0;
-							}
-
-							//clear input_buffer
-							clear_input_buff();
-						}
-						else if (!strncmp(input_buff, "/list", 5 * sizeof(char))){
-							sendto(sockfd, &req_list, sizeof(struct request_list), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-							//clear input_buffer
-							clear_input_buff();
-						}
-						else if (!strncmp(input_buff, "/who ", 5 * sizeof(char))){
-							//parse channel name from input_buff
-							strcpy(req_who.req_channel, input_buff+5);
-							sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-
-							//clear input_buffer
-							clear_input_buff();
-						}
-						else if (!strncmp(input_buff, "/switch ", 8 * sizeof(char))){
-							//if client is a member of the specified channel
-							if (contains(input_buff+8)){
-								//set active channel to be that channel
-								strcpy(cur_channel, input_buff+8);
-							}
-
-							else{
-								//display error and don't move channel
-								printf("You have not subscribed to channel %s\n", input_buff+8);
-							}
-
-							//clear input_buffer
-							clear_input_buff();
-						}
-						else if(!strncmp(input_buff, "/", sizeof(char))){
-							printf("%s", "*Unknown command\n");
-
-							//clear input_buffer
-							clear_input_buff();
-						}
-
-						else{ //not a command, must be a message to be sent
-							if(inChannel){
-								req_say.req_type = REQ_SAY;
-
-								//make message from input_buffer
-								strcpy(req_say.req_channel, cur_channel);
-								strcpy(req_say.req_text, input_buff);
-
-								//send message
-								sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-							}
-							//clear input_buffer
-							clear_input_buff();
-						}
-						fflush(stdout);
+					//if leaving current channel
+					if(!strcmp(input_buff+7,cur_channel)){
+						inChannel = 0;
 					}
+
+					//clear input_buffer
+					clear_input_buff();
+				}
+				else if (!strncmp(input_buff, "/list", 5 * sizeof(char))){
+					sendto(sockfd, &req_list, sizeof(struct request_list), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					//clear input_buffer
+					clear_input_buff();
+				}
+				else if (!strncmp(input_buff, "/who ", 5 * sizeof(char))){
+					//parse channel name from input_buff
+					strcpy(req_who.req_channel, input_buff+5);
+					sendto(sockfd, &req_who, sizeof(struct request_who), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+
+					//clear input_buffer
+					clear_input_buff();
+				}
+				else if (!strncmp(input_buff, "/switch ", 8 * sizeof(char))){
+					//if client is a member of the specified channel
+					if (contains(input_buff+8)){
+						//set active channel to be that channel
+						strcpy(cur_channel, input_buff+8);
+					}
+
 					else{
-						//put the new char in the buff
-						input_buff[input_buff_ctr++] = current_char;
-						input_buff[input_buff_ctr] = '\0';
+						//display error and don't move channel
+						printf("You have not subscribed to channel %s\n", input_buff+8);
 					}
+
+					//clear input_buffer
+					clear_input_buff();
+				}
+				else if(!strncmp(input_buff, "/", sizeof(char))){
+					printf("%s", "*Unknown command\n");
+
+					//clear input_buffer
+					clear_input_buff();
+				}
+				else{ //not a command, must be a message to be sent
+					if(inChannel){
+						req_say.req_type = REQ_SAY;
+
+						//make message from input_buffer
+						strcpy(req_say.req_channel, cur_channel);
+						strcpy(req_say.req_text, input_buff);
+
+						//send message
+						sendto(sockfd, &req_say, sizeof(struct request_say), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					}
+					//clear input_buffer
+					clear_input_buff();
+				}
+				fflush(stdout);
+		}
+		else{
+			printf("%c", current_char);
+			//put the new char in the buff
+			input_buff[input_buff_ctr++] = current_char;
+			input_buff[input_buff_ctr] = '\0';
+		}
+	}
+
+	if (FD_ISSET(sockfd, &s_rd)){
+		msg_flag = 0;
+
+		//print >32 backspaces to clear
+		printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
+
+		//read what whole UDP packet
+		bzero(buf, UDP_MAX_PAC_SIZE);
+		handleRead(read(sockfd, buf, UDP_MAX_PAC_SIZE));
+
+		//cast as generic type and get code
+		gen_received_struct = (struct text*)buf;
+
+		//if say
+		if(gen_received_struct->txt_type == 0){
+			t_say = ((struct text_say*) gen_received_struct);
+			printf("[%s][%s]: %s\n", t_say->txt_channel, t_say->txt_username, t_say->txt_text);
 		}
 
-		if (FD_ISSET(sockfd, &s_rd)){
-			msg_flag = 0;
-
-			//print >32 backspaces to clear
-			printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-
-			//read what whole UDP packet
-			bzero(buf, UDP_MAX_PAC_SIZE);
-			handleRead(read(sockfd, buf, UDP_MAX_PAC_SIZE));
-
-			//cast as generic type and get code
-			gen_received_struct = (struct text*)buf;
-
-			//if say
-			if(gen_received_struct->txt_type == 0){
-				t_say = ((struct text_say*) gen_received_struct);
-				printf("[%s][%s]: %s\n", t_say->txt_channel, t_say->txt_username, t_say->txt_text);
+		//if list
+		else if(gen_received_struct->txt_type == 1){
+			t_list = ((struct text_list*) gen_received_struct);
+			printf("Existing channels:\n");
+			int i;
+			for(i = 0; i < t_list->txt_nchannels; i++){
+				printf(" %s\n", (char*)t_list->txt_channels + (i * CHANNEL_MAX));
 			}
-
-			//if list
-			else if(gen_received_struct->txt_type == 1){
-				t_list = ((struct text_list*) gen_received_struct);
-				printf("Existing channels:\n");
-				int i;
-				for(i = 0; i < t_list->txt_nchannels; i++){
-					printf(" %s\n", (char*)t_list->txt_channels + (i * CHANNEL_MAX));
-				}
-			}
-
-			//if who
-			else if(gen_received_struct->txt_type == 2){
-				t_who = ((struct text_who*) gen_received_struct);
-				printf("Users on channel %s:\n", t_who->txt_channel);
-				int j;
-				for(j=0; j<t_who->txt_nusernames; j++){
-					printf(" %s\n", (char*)t_who->txt_users + (j * CHANNEL_MAX));
-				}
-			}
-
-			//if error
-			else if(gen_received_struct->txt_type == 3){
-				t_error = ((struct text_error*) gen_received_struct);
-				printf("Error: %s\n", t_error->txt_error);
-			}
-
-			//redisplay input buff
-			printf("> %s", input_buff);
-
-			fflush(stdout);
 		}
+
+		//if who
+		else if(gen_received_struct->txt_type == 2){
+			t_who = ((struct text_who*) gen_received_struct);
+			printf("Users on channel %s:\n", t_who->txt_channel);
+			int j;
+			for(j=0; j<t_who->txt_nusernames; j++){
+				printf(" %s\n", (char*)t_who->txt_users + (j * CHANNEL_MAX));
+			}
+		}
+
+		//if error
+		else if(gen_received_struct->txt_type == 3){
+			t_error = ((struct text_error*) gen_received_struct);
+			printf("Error: %s\n", t_error->txt_error);
+		}
+
+		//redisplay input buff
+		printf("> %s", input_buff);
+
+		fflush(stdout);
+	}
 
 		//f newline or message, prompt
 		if (newline_flag || msg_flag){
