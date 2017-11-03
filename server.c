@@ -39,7 +39,6 @@
 
 struct node* dll_channels;
 struct node* dll_users;
-int channelSize = 0;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -139,11 +138,12 @@ int main(int argc, char *argv[]){
 				struct node* tempNode;
 				tempNode = append(r_login->req_username, dll_users, &serv_addr);
 				if(tempNode == NULL){
-					displayData(dll_users);
 					printf("error adding to user list\n");
+					break;
 				}
 
 				printf("server: %s logs in\n", r_login->req_username);
+				dll_users->numNodesInList++;
 				break;
 			}
 			case REQ_LOGOUT: {//logout
@@ -151,38 +151,23 @@ int main(int argc, char *argv[]){
 					break;
 				}
 
-//				printf("\tbefore logout, channel looks like");
-//				displayData(dll_channels);
-//				printf("\tbefore logout, users looks like");
-//				displayData(dll_users);
-
 				r_logout = (struct request_logout*) gen_request_struct;
-				//printf("pre remove\n");
+
 				//take action - remove user from user list and every channel they are in. remove empty channels
 				remove_user(dll_users, &serv_addr);
-
-				//printf("post remove\n");
 
 				//remove user from all channels
 				struct node* channelNode;
 				channelNode = dll_channels->next;
 				while(channelNode != NULL){ //remove user if contained in channel
-					printf("\tremoving user from each channel\n");
-					//displayData(channelNode);
 					remove_user(channelNode->inner, &serv_addr);
 
 					//if channel has no users, remove channel
 					if(channelNode->inner->next == NULL){
-						printf("\tremoving empty channel named: %s\n", channelNode->data);
 						remove_channel(channelNode->data, dll_channels);
 					}
 					channelNode = channelNode->next;
 				}
-//				printf("\tafter logout, channel list looks like");
-//				displayData(dll_channels);
-//				printf("\tafter logout, users looks like");
-//				displayData(dll_users);
-
 
 				break;
 			}
@@ -207,8 +192,6 @@ int main(int argc, char *argv[]){
 
 					//create channel
 					tempNode = append(r_join->req_channel, dll_channels, NULL);
-
-					channelSize++;
 				}
 
 				//now channel exists
@@ -233,7 +216,6 @@ int main(int argc, char *argv[]){
 				//take action - remove user from channel
 				struct node* channelNode;
 				channelNode = find_channel(r_leave->req_channel, dll_channels);
-				printf("server: %s leaves channel %s\n", currentUserNode->data, r_leave->req_channel);
 
 				//if channel doesn't exist
 				if(channelNode == NULL){
@@ -241,12 +223,30 @@ int main(int argc, char *argv[]){
 					strcpy(t_error.txt_error, "No channel by the name ");
 					strcat(t_error.txt_error, r_leave->req_channel);
 					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					break;
+				}
+				printf("\tchannel users are: ");
+				displayData(channelNode->inner->next);
+
+				//remove user from channel
+				if(remove_user(channelNode->inner, currentUserNode->serv_addr) == 0){
+					strcpy(t_error.txt_error, "Not a member of channel ");
+					strcat(t_error.txt_error, r_leave->req_channel);
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					break;
 				}
 
-				//if channel has no users, remove channel
-				if(channelNode->inner->next != NULL){
-					printf("server: removing empty channel %s\n", channelNode->data);
-					remove_channel(channelNode->data, dll_channels);
+				printf("server: %s leaves channel %s\n", currentUserNode->data, r_leave->req_channel);
+
+
+				channelNode = dll_channels->next;
+				//remove empty channels
+				while(channelNode != NULL){
+					//if channel has no users, remove channel
+					if(channelNode->inner->next == NULL){
+						remove_channel(channelNode->data, dll_channels);
+					}
+					channelNode = channelNode->next;
 				}
 
 				break;
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]){
 
 				//take action - send a list all channels
 				struct node* currentNode = dll_channels->next;
-				int structSize = sizeof(struct text_list) + (channelSize * sizeof(struct channel_info));
+				int structSize = sizeof(struct text_list) + (dll_channels->numNodesInList * sizeof(struct channel_info));
 				struct text_list* t_list = (struct text_list*)malloc(structSize);
 				if (t_list == NULL){
 					fprintf(stderr,"failed malloc\n");
@@ -319,7 +319,7 @@ int main(int argc, char *argv[]){
 				}
 
 				t_list->txt_type = TXT_LIST;
-				t_list->txt_nchannels = channelSize;
+				t_list->txt_nchannels = dll_channels->numNodesInList;
 
 				int i = 0;
 				while(currentNode != NULL){
@@ -357,7 +357,7 @@ int main(int argc, char *argv[]){
 				}
 
 				//take action - send channel name and list of every user in that channel
-				int numInChannel = channelNode->inner->usersInChannel;
+				int numInChannel = channelNode->inner->numNodesInList;
 				int structSize = sizeof(struct text_who) + (numInChannel * sizeof(struct user_info));
 				struct text_who* t_who = (struct text_who*)malloc(structSize);
 				if (t_who == NULL){
