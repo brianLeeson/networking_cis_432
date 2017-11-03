@@ -300,6 +300,7 @@ int main(int argc, char *argv[]){
 				printf("\n");
 			}
 			if (current_char == '\n'){
+				printf("%c", current_char);
 				newline_flag = 1;
 				if (!strcmp(input_buff, "/exit")){
 					sendto(sockfd, &req_logout, sizeof(struct request_logout), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
