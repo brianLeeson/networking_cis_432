@@ -7,6 +7,8 @@
  *      	help from: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
  *      	This implementation of a DLL is a modified form of the DLL found at:
  *      	https://www.tutorialspoint.com/data_structures_algorithms/doubly_linked_list_program_in_c.htm
+ *      Conceptual help from classmates: randy, jack, amie, anisha, kaley and alision
+ *
  */
 #include <stdio.h>
 #include "duckchat.h"
