@@ -254,6 +254,7 @@ int main(int argc, char *argv[]){
 	req_join.req_type = REQ_JOIN;
 	strcpy(req_join.req_channel, DEFAULT_CHAN);
 	sendto(sockfd, &req_join, sizeof(struct request_join), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+	insertTail(DEFAULT_CHAN);
 
 	//while logged in, handle user input, handle server messages
 	char current_char;
