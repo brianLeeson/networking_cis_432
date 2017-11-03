@@ -3,7 +3,8 @@
  *
  *  Created on: Oct 26, 2017
  *      Author: brian
- *      Credit: Conceptual help from classmates: Anisha, Amie and Kaley
+ *      Credit:
+ *      Conceptual help from classmates: randy, jack, amie, anisha, kaley and alision
  *      This implementation of a DLL is a *heavily* modified form of the DLL found at:
  *     	https://www.tutorialspoint.com/data_structures_algorithms/doubly_linked_list_program_in_c.htm
  */
