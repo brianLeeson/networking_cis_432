@@ -345,6 +345,18 @@ int main(int argc, char *argv[]){
 				free(t_who);
 				break;
 			}
+			case REQ_S2S_JOIN:{
+
+				break;
+			}
+			case REQ_S2S_LEAVE:{
+
+				break;
+			}
+			case REQ_S2S_SAY:{
+
+				break;
+			}
 			default:{
 				strcpy(t_error.txt_error, "Server couldn't match message type.");
 				sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
