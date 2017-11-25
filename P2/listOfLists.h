@@ -32,7 +32,7 @@ struct node {
    struct node* prev;
 };
 
-struct node* initDLL(){
+struct node* createNode(){
 	struct node *init_node = (struct node*) malloc(sizeof(struct node));
 	init_node->next = NULL;
 	init_node->prev = NULL;
@@ -109,14 +109,7 @@ struct node* append(char* data, struct node* head, struct sockaddr_in* address) 
 //	displayData(head);
 
 	//create a link
-	struct node *link = (struct node*) malloc(sizeof(struct node));
-	//set fields to NULL
-	link->numNodesInList = 0;
-	link->data[0] = '\0';
-	link->inner = NULL;
-	link->next = NULL;
-	link->prev = NULL;
-	link->serv_addr = NULL;
+	struct node *link = createNode();
 
 	if(address != NULL){//trying to add user
 		if(find_user(head, address) == NULL){//trying to add new user
@@ -142,7 +135,7 @@ struct node* append(char* data, struct node* head, struct sockaddr_in* address) 
 	}
 
 	//initialize
-	link->inner = initDLL();
+	link->inner = createNode();
 	//link->serv_addr = NULL;
 	strcpy(link->data, data);
 
@@ -185,19 +178,7 @@ int remove_user(struct node* head, struct sockaddr_in* address) {
 		//printf("current null\n");
 		return 0;
 	}
-/*
-	printf("current port: %d\n", current->serv_addr->sin_port);
-	printf("current IP address: %d\n", current->serv_addr->sin_addr.s_addr);
 
-	printf("looking for port: %d\n", address->sin_port);
-	printf("looking for IP address: %d\n", address->sin_addr.s_addr);
-
-	printf("compare port is %d\n", (current->serv_addr->sin_port == address->sin_port));
-	printf("compare IP is %d\n", (current->serv_addr->sin_addr.s_addr == address->sin_addr.s_addr));
-	printf("compare complete\n");
-
-	printf("while loop\n");
-*/
 	//while port and address don't match
 	while((current->serv_addr->sin_port != address->sin_port) || (current->serv_addr->sin_addr.s_addr != address->sin_addr.s_addr)){
 		//printf("while looping\n");
@@ -208,13 +189,11 @@ int remove_user(struct node* head, struct sockaddr_in* address) {
 		}
 	}
 
-	//printf("bypassing\n");
 	//bypass the current link
 	current->prev->next = current->next;
 
 	//free currents' inner list
 
-	//printf("removing\n");
 	removeAll(current->inner);
 	if(current->serv_addr != NULL){
 		free(current->serv_addr);
@@ -246,7 +225,6 @@ int remove_channel(char* data, struct node* head) {
 	current->prev->next = current->next;
 
 	//free currents' inner list
-
 	removeAll(current->inner);
 	head->numNodesInList--;
 	free(current);

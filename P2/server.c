@@ -26,6 +26,7 @@
 
 struct node* dll_channels;
 struct node* dll_users;
+struct node* dll_adjacency;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -38,13 +39,43 @@ int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
 
-	if (argc != 3){
+	if (argc < 3){
 		printf("Usage: ./server domain_name port_num\n");
 		return 1;
 	}
 	//create server and user lists
-	dll_channels = initDLL();
-	dll_users = initDLL();
+	dll_channels = createNode();
+	dll_users = createNode();
+	dll_adjacency = createNode();
+
+	//populate server adjacency list
+	int i;
+	int adj_server_port;
+	char* serverName;
+	struct sockaddr_in adj_serv_addr;
+	struct hostent *adj_server_address;
+	serverName = '\0';
+	for (i = 1; i < argc; i=i+2){
+		//create server name
+		strcat(serverName, argv[i]);
+		strcat(serverName, argv[i+1]);
+
+		//create server sockaddr_in
+		adj_server_port = atoi(argv[i+1]);
+		if ((adj_server_address = gethostbyname(argv[i])) == NULL) {
+			fprintf(stderr, "ERROR - server: no such host\n");
+			return 1;
+		}
+
+		//create serv_addr
+		bzero((char *)&adj_serv_addr, sizeof(adj_serv_addr));
+		adj_serv_addr.sin_family = AF_INET;
+		bcopy((char *)adj_server_address->h_addr, (char *)&adj_serv_addr.sin_addr.s_addr, adj_server_address->h_length);
+		adj_serv_addr.sin_port = htons(adj_server_port);
+
+		append(serverName, dll_adjacency, &adj_serv_addr);
+	}
+
 
 	//create socket
 	int sockfd, server_port, loggedIn;
@@ -79,12 +110,13 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "ERROR - server: no such host\n");
 		return 1;
 	}
-	//bind sockfd
+	//create serv_addr
 	bzero((char *)&serv_addr, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
 	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
 	serv_addr.sin_port = htons(server_port);
 
+	//bind sockfd
 	if(bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
 		fprintf(stderr, "ERROR - server: can't bind socket\n");
 		return 1;
