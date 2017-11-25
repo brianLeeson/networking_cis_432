@@ -43,8 +43,8 @@ int main(int argc, char *argv[]){
 		return 1;
 	}
 	//create server and user lists
-	dll_channels = initDLL();
-	dll_users = initDLL();
+	dll_channels = creatNode();
+	dll_users = creatNode();
 
 	//create socket
 	int sockfd, server_port, loggedIn;
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]){
 
 		//set login flag
 		loggedIn = 1;
-		if ((currentUserNode = find_user(dll_users, &serv_addr)) == NULL){
+		if ((currentUserNode = findPair(dll_users, &serv_addr)) == NULL){
 			loggedIn = 0;
 		}
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]){
 				strcpy(tempBuff, currentUserNode->data);
 
 				//if channel not created
-				if((tempNode = find_channel(r_join->req_channel, dll_channels)) == NULL){
+				if((tempNode = findData(r_join->req_channel, dll_channels)) == NULL){
 					//create channel
 					tempNode = append(r_join->req_channel, dll_channels, NULL);
 				}
@@ -186,7 +186,7 @@ int main(int argc, char *argv[]){
 
 				//take action - remove user from channel
 				struct node* channelNode;
-				channelNode = find_channel(r_leave->req_channel, dll_channels);
+				channelNode = findData(r_leave->req_channel, dll_channels);
 
 				//if channel doesn't exist
 				if(channelNode == NULL){
@@ -232,7 +232,7 @@ int main(int argc, char *argv[]){
 				struct node* channelNode;
 				struct node* userNode;
 
-				channelNode = find_channel(r_say->req_channel, dll_channels);
+				channelNode = findData(r_say->req_channel, dll_channels);
 				if(channelNode == NULL){
 					printf("server: %s trying to send to users in non-existing channel %s\n", currentUserNode->data, r_say->req_channel);
 					strcpy(t_error.txt_error, "No channel by the name ");
@@ -308,7 +308,7 @@ int main(int argc, char *argv[]){
 				struct node* channelNode;
 				struct node* userNode;
 
-				channelNode = find_channel(r_who->req_channel, dll_channels);
+				channelNode = findData(r_who->req_channel, dll_channels);
 				if(channelNode == NULL){
 					printf("server: %s trying to list users in non-existing channel %s\n", currentUserNode->data, r_who->req_channel);
 					strcpy(t_error.txt_error, "No channel by the name ");
