@@ -30,6 +30,7 @@ struct node* dll_channels;
 struct node* dll_users;
 struct node* dll_adjacency;
 
+struct node* serv_self;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]){
 	char serverName[ADDRESS_MAX];
 	struct sockaddr_in adj_serv_addr;
 	struct hostent *adj_server_address;
-	for (i = 3; i < argc; i=i+2){
+	for (i = 1; i < argc; i=i+2){
 
 		printf("in for loop %d. argc is %d\n", i, argc);
 		//create server name
@@ -85,6 +86,7 @@ int main(int argc, char *argv[]){
 		append(serverName, dll_adjacency, &adj_serv_addr);
 		serverName[0] ='\0';
 	}
+	serv_self = dll_adjacency->next;
 	printf("adjacency list created\n");
 
 	//create socket
@@ -141,7 +143,7 @@ int main(int argc, char *argv[]){
 	while(1){
 		//recvfrom sockfd
 		recvfrom(sockfd, incoming_buff, MAX_REQ_SIZE, 0, (struct sockaddr *)&serv_addr, &addrlen);
-		//printf("recieved message!\n");
+		printf("recieved message!\n");
 
 		//cast generic
 		gen_request_struct = (struct request*) incoming_buff;
@@ -219,15 +221,14 @@ int main(int argc, char *argv[]){
 					s_join->serv_type = SERV_JOIN;
 					//send serv_join to adjacent servers
 					strcpy(s_join->txt_channel, r_join->req_channel);
-					struct node* current = dll_adjacency->next;
+					struct node* current = serv_self->next;
 					while (current != NULL){
 						//send join to each channel in server adj list
-						//int flag = sendto(sockfd,  0, (struct sockaddr*)current->serv_addr, sizeof(current->serv_addr));
 						int flag = sendto(sockfd, s_join, sizeof(struct serv_join), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
 						if (flag == -1){
 							printf("SEND FAILED\n");
 						}
-						printf("s %s send S2S Join %s\n",current->data, s_join->txt_channel); //TODO complete
+						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel); //TODO complete
 						printf("adj_serv_addr port: %d, host: %d\n", current->serv_addr->sin_port, current->serv_addr->sin_addr.s_addr);
 						current = current->next;
 					}
@@ -428,15 +429,18 @@ int main(int argc, char *argv[]){
 
 					//set channel adj list to be all adj channels and send join to all channels (but the one that sent us the join?)
 					struct node* current;
-					current = dll_channels->next;
+					current = dll_adjacency->next->next;
 					printf("building channel adj list\n");
 					while (current != NULL){
 						//add to channel adj list
 						append(current->data, channel->adj_list, current->serv_addr);
 						printf("building. appended\n");
 						//send join to each channel in server adj list
-						sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)&current->serv_addr, sizeof(current->serv_addr));
-						printf("s s send S2S Join s\n"); //TODO complete
+						int flag = sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
+						if (flag == -1){
+							printf("FAILED TO SEND SERV_JOIN\n");
+						}
+						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel);
 						current = current->next;
 					}
 
