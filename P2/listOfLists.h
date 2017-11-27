@@ -138,6 +138,7 @@ struct node* append(char* data, struct node* head, struct sockaddr_in* address) 
 
 	//initialize
 	link->inner = createNode();
+	link->adj_list = createNode();
 	//link->serv_addr = NULL;
 	strcpy(link->data, data);
 

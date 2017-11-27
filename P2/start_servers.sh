@@ -9,7 +9,7 @@ SERVER_NAME=`echo $SERVER | sed 's#.*/\(.*\)#\1#g'`
 
 # Generate a simple two-server topology
 $SERVER localhost 4000 localhost 4001 &
-$SERVER localhost 4001 localhost 4000 & 
+$SERVER localhost 4001 localhost 4000 &
 
 # Generate a capital-H shaped topology
 #$SERVER localhost 4000 localhost 4001 &

@@ -5,12 +5,12 @@ CFLAGS=-Wall -W -g
 ARGS_C = localhost 3000 bel
 ARGS_S = localhost 3000
 
-all: client server
+all: client server 
 
-client: client.c raw.c listOfLists.h
+client: client.c raw.c listOfLists.h duckchat.h
 	$(CC) client.c raw.c $(CFLAGS) -o client
 
-server: server.c raw.c listOfLists.h
+server: server.c raw.c listOfLists.h duckchat.h
 	$(CC) server.c raw.c  $(CFLAGS) -o server
 
 clean:
