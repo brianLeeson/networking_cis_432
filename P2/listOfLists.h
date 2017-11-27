@@ -28,6 +28,7 @@ struct node {
    struct sockaddr_in* serv_addr;
 
    struct node* inner;
+   struct node* adj_list;
    struct node* next;
    struct node* prev;
 };
@@ -39,6 +40,7 @@ struct node* createNode(){
 	init_node->numNodesInList = 0;
 	init_node->data[0] = '\0';
 	init_node->inner = NULL;
+	init_node->adj_list = NULL;
 	init_node->serv_addr = NULL;
 	return init_node;
 }
@@ -161,6 +163,9 @@ void* removeAll(struct node* start) {
 	}
 	removeAll(current->next);
 	removeAll(current->inner);
+	if(current->adj_list != NULL){
+		removeAll(current->adj_list);
+	}
 	if(current->serv_addr != NULL){
 		free(current->serv_addr);
 	}

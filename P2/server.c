@@ -102,6 +102,11 @@ int main(int argc, char *argv[]){
 	struct text_error t_error;
 	t_error.txt_type = TXT_ERROR;
 
+	//statically allocate serv structs
+	struct serv_join* s_join;
+	struct serv_leave* s_leave;
+	struct serv_say* s_say;
+
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
 			fprintf(stderr, "ERROR - server: can’t open stream socket\n");
 			return 1;
@@ -377,6 +382,51 @@ int main(int argc, char *argv[]){
 				free(t_who);
 				break;
 			}
+			case SERV_JOIN:{
+				//cast to specific type
+				s_join = (struct serv_join*) gen_request_struct;
+
+				//check if member of channel
+				struct node* channel;
+				channel = find_channel(s_join->txt_channel, dll_channels);
+
+				//if not member, join channel then send serv_join to all adj servers
+				if(channel == NULL){
+					channel = append(s_join->txt_channel, dll_channels, NULL);
+					//set channel adj list to be all adj channels and send join to all channels (but the one that sent us the join?)
+					struct node* current = dll_channels->next;
+					while (current != NULL){
+						//add to channel adj list
+						append(current->data, channel->adj_list, current->serv_addr);
+						//send join to each channel in server adj list
+						sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)&current->serv_addr, sizeof(current->serv_addr));
+						current = current->next;
+					}
+
+
+				}
+
+				break;
+			}
+			case SERV_LEAVE:{
+				//cast to specific type
+
+				//get channel name
+
+				//remove server from channel adj list
+
+				break;
+			}
+			case SERV_SAY:{
+				//cast to specific type
+
+				//send say msg to all subscribed clients
+
+				//send serv_say to all adj servs BUT the one that sent us a serv_say
+
+				break;
+			}
+
 			default:{
 				strcpy(t_error.txt_error, "Server couldn't match message type.");
 				sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));

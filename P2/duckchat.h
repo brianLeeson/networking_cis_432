@@ -27,6 +27,7 @@
 /* Define some types for designating request and text codes */
 typedef int request_t;
 typedef int text_t;
+typedef int serv_t;
 
 /* Define codes for request types.  These are the messages sent to the server. */
 #define REQ_LOGIN 0
@@ -139,5 +140,28 @@ struct text_error {
         text_t txt_type; /* = TXT_ERROR */
         char txt_error[SAY_MAX]; // Error message
 };
+
+/* This structure is used for a generic serv type, between servers. */
+struct serv {
+	serv_t serv_type;
+} packed;
+
+struct serv_join {
+	serv_t serv_type; /* = SERV_JOIN */
+    char txt_channel[CHANNEL_MAX];
+} packed;
+
+struct serv_leave {
+	serv_t serv_type; /* = SERV_LEAVE */
+    char txt_channel[CHANNEL_MAX];
+} packed;
+
+struct serv_say {
+	serv_t serv_type; /* = SERV_SAY */
+	long long UID;
+    char txt_username[USERNAME_MAX];
+    char txt_channel[CHANNEL_MAX];
+    char txt_text[SAY_MAX];
+} packed;
 
 #endif
