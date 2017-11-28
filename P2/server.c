@@ -464,7 +464,7 @@ int main(int argc, char *argv[]){
 
 				//get channel name
 				struct node* channel;
-				channel = find_channel(s_join->txt_channel, dll_channels);
+				channel = find_channel(s_leave->txt_channel, dll_channels);
 
 				//if we are subscribed to channel
 				if(channel != NULL){
@@ -475,12 +475,21 @@ int main(int argc, char *argv[]){
 					int clientLen = channel->inner->numNodesInList;
 					//if len of channel adj list <= 1 AND channel has no clients attached
 					if((adjLen <= 1) && (clientLen == 0)){
-
-					}
 						//send leave to servers in channels adj list
+						struct node* current;
+						current = channel->adj_list->next;
+						while (current != NULL){
+							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
+							if (flag == -1){
+								printf("FAILED TO SEND SERV_LEAVE\n");
+							}
+
+							current = current->next;
+						}
 
 						//remove channel from channel list
-
+						remove_channel(channel->data, dll_channels);
+					}
 				}
 				break;
 			}
