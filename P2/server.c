@@ -39,14 +39,20 @@ void handleRead(int readResult){
 	}
 }
 
+//TODO Add support for sending Leave when a Say cannot be forwarded.
+
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
 
 	if (argc < 3){
-		printf("Usage: ./server domain_name port_num\n");
+		printf("Usage: ./server domain_name port_num ...\n");
 		return 1;
 	}
+	if ((argc % 2) != 1){
+		printf("Error - Pairs of hosts and ports incomplete");
+	}
+
 	//create server and user lists
 	dll_channels = createNode();
 	dll_users = createNode();
@@ -233,7 +239,6 @@ int main(int argc, char *argv[]){
 						current = current->next;
 					}
 					free(s_join);
-
 				}
 
 				//finally channel is created, append user to it
@@ -276,9 +281,13 @@ int main(int argc, char *argv[]){
 				channelNode = dll_channels->next;
 				//remove empty channels
 				while(channelNode != NULL){
-					//if channel has no users, remove channel
-					if(channelNode->inner->next == NULL){
+					//if channel has no users AND channel has at most 1 serv in adj list TODO
+					if(channelNode->inner->next == NULL){ //TODO add condition
+						//send serv leave to channelNodes' adj list //TODO
+
+						//remove channel
 						remove_channel(channelNode->data, dll_channels);
+
 					}
 					channelNode = channelNode->next;
 				}
@@ -449,12 +458,30 @@ int main(int argc, char *argv[]){
 				break;
 			}
 			case SERV_LEAVE:{
+				printf("in serv leave\n");
 				//cast to specific type
+				s_leave = (struct serv_leave*) gen_request_struct;
 
 				//get channel name
+				struct node* channel;
+				channel = find_channel(s_join->txt_channel, dll_channels);
 
-				//remove server from channel adj list
+				//if we are subscribed to channel
+				if(channel != NULL){
+					//remove server from the channel's adj list (if present)
+					remove_user(channel->adj_list, &serv_addr);
 
+					int adjLen = channel->adj_list->numNodesInList;
+					int clientLen = channel->inner->numNodesInList;
+					//if len of channel adj list <= 1 AND channel has no clients attached
+					if((adjLen <= 1) && (clientLen == 0)){
+
+					}
+						//send leave to servers in channels adj list
+
+						//remove channel from channel list
+
+				}
 				break;
 			}
 			case SERV_SAY:{
