@@ -25,6 +25,7 @@ char input_buff[SAY_MAX];
 struct node {
    char data[32];
    int numNodesInList;
+   int isAlive;
    struct sockaddr_in* serv_addr;
 
    struct node* inner;
@@ -38,6 +39,7 @@ struct node* createNode(){
 	init_node->next = NULL;
 	init_node->prev = NULL;
 	init_node->numNodesInList = 0;
+	init_node->isAlive = 1;
 	init_node->data[0] = '\0';
 	init_node->inner = NULL;
 	init_node->adj_list = NULL;

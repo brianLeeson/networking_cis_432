@@ -36,9 +36,10 @@ struct node* dll_adjacency;
 
 struct node* serv_self;
 
-
 long long SAY_IDS[ID_MAX];
 int CUR_ID_POS = 0;
+int sockfd;
+int isMin = 1;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -52,6 +53,43 @@ static void onalrm(UNUSED int sig) {
 	signal(SIGINT, SIG_IGN);
 
 	printf("received alarm \n");
+	//for each channel send join msgs to the servers adj list
+	struct node* channel = dll_channels->next;
+	struct node* adj_server;
+	int flag;
+
+	struct serv_join* s_join = (struct serv_join*)malloc(sizeof(struct serv_join));
+	s_join->serv_type = SERV_JOIN;
+
+	while(channel != NULL){
+		adj_server = channel->adj_list->next;
+		strcpy(s_join->txt_channel, channel->data);
+		while (adj_server != NULL){
+			flag = sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)adj_server->serv_addr, sizeof(struct sockaddr_in));
+			if (flag == -1){
+				printf("FAILED TO SEND SERV_JOIN in alarm\n");
+			}
+			//if this is a 2 minute timer, remove dead servers from channel adj list
+			if(!isMin){
+					//if server keep alive 1, set 0
+					if(adj_server->isAlive == 1){
+						adj_server->isAlive = 0;
+					}
+					//if server keep alive 0, remove server form channels adj list
+					else{
+						remove_user(channel->adj_list, adj_server->serv_addr);
+					}
+			}
+
+			adj_server = adj_server->next;
+		}
+
+		channel = channel->next;
+	}
+
+
+
+	isMin = !isMin;
 
 	signal(SIGINT, SIG_DFL);
 }
@@ -80,7 +118,7 @@ int main(int argc, char *argv[]){
 	setSignalHandlers();
 
 	struct itimerval it_val;
-	it_val.it_value.tv_sec = 60;
+	it_val.it_value.tv_sec = 5;
 	it_val.it_value.tv_usec = 0;
 	it_val.it_interval = it_val.it_value;
 	if (setitimer(ITIMER_REAL, &it_val, NULL) == -1) {
@@ -99,7 +137,7 @@ int main(int argc, char *argv[]){
 	char serverName[ADDRESS_MAX];
 	struct sockaddr_in adj_serv_addr;
 	struct hostent *adj_server_address;
-	for (i = 1; i < argc; i=i+2){ //TODO deal with saving yourself as an adj server
+	for (i = 1; i < argc; i=i+2){
 
 		printf("in for loop %d. argc is %d\n", i, argc);
 		//create server name
@@ -132,7 +170,7 @@ int main(int argc, char *argv[]){
 	printf("adjacency list created\n");
 
 	//create socket
-	int sockfd, server_port, loggedIn;
+	int server_port, loggedIn;
 	server_port = atoi(argv[2]);
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
@@ -519,7 +557,7 @@ int main(int argc, char *argv[]){
 				free(t_who);
 				break;
 			}
-			case SERV_JOIN:{
+			case SERV_JOIN:{ //TODO set isAlive for server to be 1
 				printf("in serv join\n");
 				//cast to specific type
 				s_join = (struct serv_join*) gen_request_struct;
@@ -549,6 +587,12 @@ int main(int argc, char *argv[]){
 						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel);
 						current = current->next;
 					}
+
+				}
+				//else we are a member, set the isAlive of the server in the channel to 1.
+				else{
+					struct node* server = find_user(channel->adj_list, &serv_addr);
+					server->isAlive = 1;
 
 				}
 				printf("completed serv join\n");
