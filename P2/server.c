@@ -86,11 +86,7 @@ static void onalrm(UNUSED int sig) {
 
 		channel = channel->next;
 	}
-
-
-
 	isMin = !isMin;
-
 	signal(SIGINT, SIG_DFL);
 }
 
@@ -105,6 +101,9 @@ void setSignalHandlers(){
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
+	//printf("size of int %lu\n", sizeof(int));
+	//printf("size of long long %lu\n", sizeof(long long));
+	//printf("size of unsigned int %lu\n", sizeof(unsigned int));
 
 	if (argc < 3){
 		printf("Usage: ./server domain_name port_num ...\n");
@@ -139,16 +138,15 @@ int main(int argc, char *argv[]){
 	struct hostent *adj_server_address;
 	for (i = 1; i < argc; i=i+2){
 
-		printf("in for loop %d. argc is %d\n", i, argc);
+		//printf("in for loop %d. argc is %d\n", i, argc);
 		//create server name
-		printf("argv pair is %s and %s\n", argv[i], argv[i+1]);
+		//printf("argv pair is %s and %s\n", argv[i], argv[i+1]);
 		strcat(serverName, argv[i]);
 		strcat(serverName, argv[i+1]);
-		printf("finished concat\n");
 
 		//create server sockaddr_in
 		adj_server_port = atoi(argv[i+1]);
-		printf("byte order port %d\n", htons(adj_server_port));
+		//printf("byte order port %d\n", htons(adj_server_port));
 		if ((adj_server_address = gethostbyname(argv[i])) == NULL) {
 			fprintf(stderr, "ERROR - server: no such host\n");
 			return 1;
@@ -167,7 +165,7 @@ int main(int argc, char *argv[]){
 	}
 	serv_self = dll_adjacency->next;
 	remove_user(dll_adjacency, serv_self->serv_addr);
-	printf("adjacency list created\n");
+	//printf("adjacency list created\n");
 
 	//create socket
 	int server_port, loggedIn;
@@ -223,7 +221,7 @@ int main(int argc, char *argv[]){
 	while(1){
 		//recvfrom sockfd
 		recvfrom(sockfd, incoming_buff, MAX_REQ_SIZE, 0, (struct sockaddr *)&serv_addr, &addrlen);
-		printf("recieved message!\n");
+		printf("\trecieved message!\n");
 
 		//cast generic
 		gen_request_struct = (struct request*) incoming_buff;
@@ -271,13 +269,11 @@ int main(int argc, char *argv[]){
 
 					//if channel has no users AND channel has at most 1 serv in adj list
 					if((channelNode->inner->next == NULL) && (channelNode->adj_list->numNodesInList <= 1)){
-						printf("need to send leave message\n");
-						displayData(channelNode->adj_list);
 						//send serv leave to channelNodes' adj list
 						struct node* temp = channelNode->adj_list->next;
 						while (temp != NULL){
 							strcpy(s_leave->txt_channel, channelNode->data);
-							printf("sending serv leave\n");
+							//printf("sending serv leave\n");
 							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)temp->serv_addr, sizeof(struct sockaddr_in));
 							if (flag == -1){
 								printf("FAILED TO SEND SERV_LEAVE in req_leave\n");
@@ -375,17 +371,14 @@ int main(int argc, char *argv[]){
 				s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
 				s_leave->serv_type = SERV_LEAVE;
 
-				printf("going into while\n");
 				while(channelNode != NULL){
 					//if channel has no users AND channel has at most 1 serv in adj list
 					if((channelNode->inner->next == NULL) && (channelNode->adj_list->numNodesInList <= 1)){
-						printf("need to send leave message\n");
-						displayData(channelNode->adj_list);
 						//send serv leave to channelNodes' adj list
 						struct node* temp = channelNode->adj_list->next;
 						while (temp != NULL){
 							strcpy(s_leave->txt_channel, channelNode->data);
-							printf("sending serv leave\n");
+							//printf("sending serv leave\n");
 							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)temp->serv_addr, sizeof(struct sockaddr_in));
 							if (flag == -1){
 								printf("FAILED TO SEND SERV_LEAVE in req_leave\n");
@@ -429,14 +422,6 @@ int main(int argc, char *argv[]){
 
 				//for each user in the channel, send the say msg to that user
 				userNode = channelNode->inner->next; //userNode is first user in channel
-				/*
-				if(userNode == NULL){ //sending say to empty channel, this should never happen as the channel should be removed when emptied
-					printf("server: %s trying to send to users in an empty channel %s. Should not be possible.\n", currentUserNode->data, r_say->req_channel);
-					strcpy(t_error.txt_error, "No users in channel ");
-					strcat(t_error.txt_error, r_say->req_channel);
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-				}
-				*/
 
 				printf("server: %s sends say message in %s\n",currentUserNode->data ,r_say->req_channel);
 				while(userNode != NULL){ //send say to each user in channel
@@ -558,7 +543,6 @@ int main(int argc, char *argv[]){
 				break;
 			}
 			case SERV_JOIN:{ //TODO set isAlive for server to be 1
-				printf("in serv join\n");
 				//cast to specific type
 				s_join = (struct serv_join*) gen_request_struct;
 
@@ -569,16 +553,13 @@ int main(int argc, char *argv[]){
 				//if not member, join channel then send serv_join to all adj servers
 				if(channel == NULL){
 					channel = append(s_join->txt_channel, dll_channels, NULL);
-					printf("added new channel\n");
 
 					//set channel adj list to be all adj channels and send join to all channels (but the one that sent us the join?)
 					struct node* current;
 					current = dll_adjacency->next->next;
-					printf("building channel adj list\n");
 					while (current != NULL){
 						//add to channel adj list
 						append(current->data, channel->adj_list, current->serv_addr);
-						printf("building. appended\n");
 						//send join to each channel in server adj list
 						int flag = sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
 						if (flag == -1){
@@ -595,11 +576,9 @@ int main(int argc, char *argv[]){
 					server->isAlive = 1;
 
 				}
-				printf("completed serv join\n");
 				break;
 			}
 			case SERV_LEAVE:{
-				printf("in serv leave\n");
 				//cast to specific type
 				s_leave = (struct serv_leave*) gen_request_struct;
 
@@ -711,9 +690,9 @@ int main(int argc, char *argv[]){
 				break;
 			}
 			default:{
-				strcpy(t_error.txt_error, "Server couldn't match message type.");
-				sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-				fprintf(stderr, "ERROR - server: no matching req type\n");
+				//strcpy(t_error.txt_error, "Server couldn't match message type.");
+				//sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				fprintf(stderr, "ERROR - server: no matching struct type\n");
 			}
 		}
 	}
