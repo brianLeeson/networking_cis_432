@@ -25,12 +25,17 @@
 #include "listOfLists.h"
 
 #define ADDRESS_MAX 64
+#define ID_MAX 1000
 
 struct node* dll_channels;
 struct node* dll_users;
 struct node* dll_adjacency;
 
 struct node* serv_self;
+
+
+long long SAY_IDS[ID_MAX];
+int CUR_ID_POS = 0;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -191,16 +196,31 @@ int main(int argc, char *argv[]){
 				//remove user from all channels
 				struct node* channelNode;
 				channelNode = dll_channels->next;
-				while(channelNode != NULL){ //remove user if contained in channel
+				while(channelNode != NULL){
+					//remove user if contained in channel
 					remove_user(channelNode->inner, &serv_addr);
 
-					//if channel has no users, remove channel
-					if(channelNode->inner->next == NULL){
+					//if channel has no users AND channel has at most 1 serv in adj list
+					if((channelNode->inner->next == NULL) && (channelNode->adj_list->numNodesInList <= 1)){
+						printf("need to send leave message\n");
+						displayData(channelNode->adj_list);
+						//send serv leave to channelNodes' adj list
+						struct node* temp = channelNode->adj_list->next;
+						while (temp != NULL){
+							strcpy(s_leave->txt_channel, channelNode->data);
+							printf("sending serv leave\n");
+							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)temp->serv_addr, sizeof(struct sockaddr_in));
+							if (flag == -1){
+								printf("FAILED TO SEND SERV_LEAVE in req_leave\n");
+							}
+							temp = temp->next;
+						}
+
+						// remove channel
 						remove_channel(channelNode->data, dll_channels);
 					}
 					channelNode = channelNode->next;
 				}
-
 				break;
 			}
 			case REQ_JOIN: { //join
@@ -229,12 +249,15 @@ int main(int argc, char *argv[]){
 					strcpy(s_join->txt_channel, r_join->req_channel);
 					struct node* current = serv_self->next;
 					while (current != NULL){
-						//send join to each channel in server adj list
+						//send join to each server in server adj list
 						int flag = sendto(sockfd, s_join, sizeof(struct serv_join), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
 						if (flag == -1){
 							printf("SEND FAILED\n");
 						}
-						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel); //TODO complete
+						//add each server in server adj list to new channels' adj list
+						append(current->data, tempNode->adj_list, current->serv_addr);
+
+						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel);
 						printf("adj_serv_addr port: %d, host: %d\n", current->serv_addr->sin_port, current->serv_addr->sin_addr.s_addr);
 						current = current->next;
 					}
@@ -278,12 +301,28 @@ int main(int argc, char *argv[]){
 					break;
 				}
 
-				channelNode = dll_channels->next;
 				//remove empty channels
+				channelNode = dll_channels->next;
+				s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
+				s_leave->serv_type = SERV_LEAVE;
+
+				printf("going into while\n");
 				while(channelNode != NULL){
-					//if channel has no users AND channel has at most 1 serv in adj list TODO
-					if(channelNode->inner->next == NULL){ //TODO add condition
-						//send serv leave to channelNodes' adj list //TODO
+					//if channel has no users AND channel has at most 1 serv in adj list
+					if((channelNode->inner->next == NULL) && (channelNode->adj_list->numNodesInList <= 1)){
+						printf("need to send leave message\n");
+						displayData(channelNode->adj_list);
+						//send serv leave to channelNodes' adj list
+						struct node* temp = channelNode->adj_list->next;
+						while (temp != NULL){
+							strcpy(s_leave->txt_channel, channelNode->data);
+							printf("sending serv leave\n");
+							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)temp->serv_addr, sizeof(struct sockaddr_in));
+							if (flag == -1){
+								printf("FAILED TO SEND SERV_LEAVE in req_leave\n");
+							}
+							temp = temp->next;
+						}
 
 						//remove channel
 						remove_channel(channelNode->data, dll_channels);
@@ -291,6 +330,7 @@ int main(int argc, char *argv[]){
 					}
 					channelNode = channelNode->next;
 				}
+				free(s_leave);
 				printf("server: %s leaves channel %s\n", currentUserNode->data, r_leave->req_channel);
 
 				break;
@@ -495,6 +535,15 @@ int main(int argc, char *argv[]){
 			}
 			case SERV_SAY:{
 				//cast to specific type
+				s_say = (struct serv_say*) gen_request_struct;
+
+				//if new say msg
+				int i;
+				for (i = 0; i < ID_MAX; i++){
+					if (SAY_IDS[i] == s_say->UID){
+
+					}
+				}
 
 				//send say msg to all subscribed clients
 
