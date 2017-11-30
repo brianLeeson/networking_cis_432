@@ -21,12 +21,14 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <uuid/uuid.h>
+#include <signal.h>
 #include "listOfLists.h"
 #include "duckchat.h"
 #include "raw.h"
 
 #define ADDRESS_MAX 64
 #define ID_MAX 1000
+#define UNUSED __attribute__((unused))
 
 struct node* dll_channels;
 struct node* dll_users;
@@ -45,7 +47,22 @@ void handleRead(int readResult){
 	}
 }
 
-//TODO Add support for sending Leave when a Say cannot be forwarded.
+static void onalrm(UNUSED int sig) {
+	//on alarm called every TIME_PERIOD
+	signal(SIGINT, SIG_IGN);
+
+	printf("received alarm \n");
+
+	signal(SIGINT, SIG_DFL);
+}
+
+void setSignalHandlers(){
+	//set sigusr1 handlers
+    if (signal(SIGALRM, onalrm) == SIG_ERR) {
+    	printf("Can't establish SIGUSR1 handler\n");
+    	exit(1);
+    }
+}
 
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
@@ -57,6 +74,18 @@ int main(int argc, char *argv[]){
 	}
 	if ((argc % 2) != 1){
 		printf("Error - Pairs of hosts and ports incomplete");
+		return 1;
+	}
+
+	setSignalHandlers();
+
+	struct itimerval it_val;
+	it_val.it_value.tv_sec = 60;
+	it_val.it_value.tv_usec = 0;
+	it_val.it_interval = it_val.it_value;
+	if (setitimer(ITIMER_REAL, &it_val, NULL) == -1) {
+		printf("error calling setitimer()");
+		exit(1);
 	}
 
 	//create server and user lists
