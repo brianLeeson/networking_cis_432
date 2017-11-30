@@ -577,6 +577,10 @@ int main(int argc, char *argv[]){
 				//if the server has users in the channel
 				if(channel->inner->next != NULL){
 					if (!oldMessage){
+						//add UUID to list
+						SAY_IDS[CUR_ID_POS] = s_say->UID;
+						CUR_ID_POS = (CUR_ID_POS + 1) % ID_MAX;
+
 						//send say msg to all users in the channel
 						struct node* user = channel->next;
 						while(user != NULL){
