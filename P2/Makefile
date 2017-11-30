@@ -1,6 +1,6 @@
 CC=g++
 
-CFLAGS=-Wall -W -g
+CFLAGS=-Wall -W -g -luuid 
 
 ARGS_C = localhost 3000 bel
 ARGS_S = localhost 3000

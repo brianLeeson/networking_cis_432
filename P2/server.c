@@ -10,8 +10,6 @@
  */
 
 #include <stdio.h>
-#include "duckchat.h"
-#include "raw.h"
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h> // AF_INET and AF_INET6 address families
@@ -22,7 +20,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <uuid/uuid.h>
 #include "listOfLists.h"
+#include "duckchat.h"
+#include "raw.h"
 
 #define ADDRESS_MAX 64
 #define ID_MAX 1000
@@ -360,12 +361,14 @@ int main(int argc, char *argv[]){
 
 				//for each user in the channel, send the say msg to that user
 				userNode = channelNode->inner->next; //userNode is first user in channel
+				/*
 				if(userNode == NULL){ //sending say to empty channel, this should never happen as the channel should be removed when emptied
 					printf("server: %s trying to send to users in an empty channel %s. Should not be possible.\n", currentUserNode->data, r_say->req_channel);
 					strcpy(t_error.txt_error, "No users in channel ");
 					strcat(t_error.txt_error, r_say->req_channel);
 					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
 				}
+				*/
 
 				printf("server: %s sends say message in %s\n",currentUserNode->data ,r_say->req_channel);
 				while(userNode != NULL){ //send say to each user in channel
@@ -376,6 +379,30 @@ int main(int argc, char *argv[]){
 					sendto(sockfd, &t_say, sizeof(struct text_say), 0, (struct sockaddr*)userNode->serv_addr,  sizeof(serv_addr));
 					userNode = userNode->next;
 				}
+
+				//send serv_say to all servers in channels adj list
+				s_say = (struct serv_say*) malloc(sizeof(struct serv_say));
+				unsigned char number[16];
+
+				uuid_generate(number);
+
+				s_say->UID = (long long) number;
+				s_say->serv_type = SERV_SAY;
+				strcpy(s_say->txt_channel, r_say->req_channel);
+				strcpy(s_say->txt_text, r_say->req_text);
+				strcpy(s_say->txt_username, currentUserNode->data);
+
+				struct node* currentServer = channelNode->adj_list->next;
+				while(currentServer != NULL){
+					//send serv say
+					int flag = sendto(sockfd, s_say, sizeof(struct serv_say), 0, (struct sockaddr*)currentServer->serv_addr,  sizeof(serv_addr));
+					if (flag == -1){
+						printf("FAILED TO SEND SERV_SAY\n");
+					}
+
+					currentServer = currentServer->next;
+				}
+
 
 				break;
 			}
@@ -539,19 +566,57 @@ int main(int argc, char *argv[]){
 
 				//if new say msg
 				int i;
+				int oldMessage = 0;
 				for (i = 0; i < ID_MAX; i++){
 					if (SAY_IDS[i] == s_say->UID){
-
+						oldMessage = 1;
 					}
 				}
+				if (!oldMessage){
+					//send say msg to all users in the channel
+					struct node* channel = find_channel(s_say->txt_channel, dll_channels);
+					struct node* user = channel->next;
+					while(user != NULL){
+						t_say.txt_type = TXT_SAY;
+						strcpy(t_say.txt_channel, s_say->txt_channel);
+						strcpy(t_say.txt_username, s_say->txt_username);
+						strcpy(t_say.txt_text, s_say->txt_text);
+						int flag = sendto(sockfd, &t_say, sizeof(struct text_say), 0, (struct sockaddr*)user->serv_addr,  sizeof(serv_addr));
+						if (flag == -1){
+							printf("FAILED TO SEND TEXT_SAY\n");
+						}
+						user = user->next;
+					}
 
-				//send say msg to all subscribed clients
+					//send serv_say to all adj servs in the channel BUT the one that sent us a serv_say
+					struct node* currentServer = channel->adj_list->next;
+					while(currentServer != NULL){
+						//if currentServer not the serv who sent to us
+						if(!((currentServer->serv_addr->sin_port == serv_addr.sin_port) && (currentServer->serv_addr->sin_addr.s_addr == serv_addr.sin_addr.s_addr))){
+							//send serv say
+							int flag = sendto(sockfd, s_say, sizeof(struct serv_say), 0, (struct sockaddr*)currentServer->serv_addr,  sizeof(serv_addr));
+							if (flag == -1){
+								printf("FAILED TO SEND SERV_SAY\n");
+							}
+						}
+						currentServer = currentServer->next;
+					}
+				}
+				else{
+					//send leave
+					s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
+					s_leave->serv_type = SERV_LEAVE;
+					strcpy(s_leave->txt_channel, s_say->txt_channel);
 
-				//send serv_say to all adj servs BUT the one that sent us a serv_say
+					int flag = sendto(sockfd, s_leave, sizeof(struct serv_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					if (flag == -1){
+						printf("FAILED TO SEND SERV_SAY\n");
+					}
 
+					free(s_leave);
+				}
 				break;
 			}
-
 			default:{
 				strcpy(t_error.txt_error, "Server couldn't match message type.");
 				sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
