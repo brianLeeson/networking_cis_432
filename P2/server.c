@@ -70,7 +70,7 @@ int main(int argc, char *argv[]){
 	char serverName[ADDRESS_MAX];
 	struct sockaddr_in adj_serv_addr;
 	struct hostent *adj_server_address;
-	for (i = 1; i < argc; i=i+2){
+	for (i = 1; i < argc; i=i+2){ //TODO deal with saving yourself as an adj server
 
 		printf("in for loop %d. argc is %d\n", i, argc);
 		//create server name
@@ -99,6 +99,7 @@ int main(int argc, char *argv[]){
 		serverName[0] ='\0';
 	}
 	serv_self = dll_adjacency->next;
+	remove_user(dll_adjacency, serv_self->serv_addr);
 	printf("adjacency list created\n");
 
 	//create socket
