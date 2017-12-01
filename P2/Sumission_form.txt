@@ -33,4 +33,5 @@ Answer the questions by selecting one of the given options. You may add addition
 
 - Does the client have all the functionality from program #1? yes
 
-
+NOTES:
+something is wrong with sigalarm or how my program is behaving with the joins it floods every minute. it is segfaulting. Please disable the alarm by setting the global at the top of the file ALARMON to 0 to see the functionality without the alarm
