@@ -53,7 +53,7 @@ static void onalrm(UNUSED int sig) {
 	//on alarm called every TIME_PERIOD
 	signal(SIGINT, SIG_IGN);
 
-	printf("received alarm \n");
+	//printf("received alarm \n");
 	//for each channel send join msgs to the servers adj list
 	struct node* channel = dll_channels->next;
 	struct node* adj_server;
@@ -82,7 +82,7 @@ static void onalrm(UNUSED int sig) {
 			inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
 			int self_port = ntohs(serv_self->serv_addr->sin_port);
 
-			printf("%s:%d %s:%d send S2S Join - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
+			printf("%s:%d %s:%d send S2S Join1 - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
 
 			//if this is a 2 minute timer, remove dead servers from channel adj list
 			if(!isMin){
@@ -171,7 +171,7 @@ int main(int argc, char *argv[]){
 
 		char buff[ADR_SIZE];
 		inet_ntop(AF_INET, &adj_serv_addr.sin_addr.s_addr, buff, ADR_SIZE);
-		printf("adj_serv_addr port: %d, host: %s\n", ntohs(adj_serv_addr.sin_port), buff);
+		//printf("adj_serv_addr port: %d, host: %s\n", ntohs(adj_serv_addr.sin_port), buff);
 
 		append(serverName, dll_adjacency, &adj_serv_addr);
 		serverName[0] ='\0';
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]){
 	while(1){
 		//recvfrom sockfd
 		recvfrom(sockfd, incoming_buff, MAX_REQ_SIZE, 0, (struct sockaddr *)&serv_addr, &addrlen);
-		printf("\trecieved message!\n");
+		//printf("\trecieved message!\n");
 
 		//cast generic
 		gen_request_struct = (struct request*) incoming_buff;
@@ -366,7 +366,7 @@ int main(int argc, char *argv[]){
 						inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
 						int self_port = ntohs(serv_self->serv_addr->sin_port);
 
-						printf("%s:%d %s:%d send S2S Join Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
+						printf("%s:%d %s:%d send S2S Join2 Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
 
 						//add each server in server adj list to new channels' adj list
 						append(serv->data, tempNode->adj_list, serv->serv_addr);
@@ -644,7 +644,7 @@ int main(int argc, char *argv[]){
 							inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
 							int self_port = ntohs(serv_self->serv_addr->sin_port);
 
-							printf("%s:%d %s:%d send S2S Join - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
+							printf("%s:%d %s:%d send S2S Join3 - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
 						}
 						currentServer = currentServer->next;
 					}
