@@ -29,6 +29,7 @@
 #define ADDRESS_MAX 64
 #define ID_MAX 1000
 #define UNUSED __attribute__((unused))
+#define ADR_SIZE 22
 
 struct node* dll_channels;
 struct node* dll_users;
@@ -98,6 +99,7 @@ void setSignalHandlers(){
     }
 }
 
+
 int main(int argc, char *argv[]){
 	raw_mode(); //set raw
 	atexit(cooked_mode); //return to cooked on normal exit
@@ -158,13 +160,15 @@ int main(int argc, char *argv[]){
 		bcopy((char *)adj_server_address->h_addr, (char *)&adj_serv_addr.sin_addr.s_addr, adj_server_address->h_length);
 		adj_serv_addr.sin_port = htons(adj_server_port);
 
-		printf("adj_serv_addr port: %d, host: %d\n", adj_serv_addr.sin_port, adj_serv_addr.sin_addr.s_addr);
+		char buff[ADR_SIZE];
+		inet_ntop(AF_INET, &adj_serv_addr.sin_addr.s_addr, buff, ADR_SIZE);
+		printf("adj_serv_addr port: %d, host: %s\n", ntohs(adj_serv_addr.sin_port), buff);
 
 		append(serverName, dll_adjacency, &adj_serv_addr);
 		serverName[0] ='\0';
 	}
 	serv_self = dll_adjacency->next;
-	remove_user(dll_adjacency, serv_self->serv_addr);
+
 	//printf("adjacency list created\n");
 
 	//create socket
@@ -247,8 +251,21 @@ int main(int argc, char *argv[]){
 					break;
 				}
 
-				printf("server: %s logs in\n", r_login->req_username);
 				dll_users->numNodesInList++;
+
+				//PRINT
+				//sender
+				char send_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+				int port = ntohs(serv_addr.sin_port);
+
+				//self
+				char self_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+				int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+				printf("%s:%d %s:%d recv Request Login User: %s\n", send_buff, port, self_buff, self_port, r_login->req_username);
+
 				break;
 			}
 			case REQ_LOGOUT: { //logout
@@ -257,33 +274,29 @@ int main(int argc, char *argv[]){
 				}
 				printf("server: %s logs out\n", currentUserNode->data);
 
-				//take action - remove user from user list and every channel they are in. remove empty channels
+				//PRINT
+				//sender
+				char send_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+				int port = ntohs(serv_addr.sin_port);
+
+				//self
+				char self_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+				int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+				printf("%s:%d %s:%d recv Request Logout User: %s\n", send_buff, port, self_buff, self_port, currentUserNode->data);
+
+				//remove user from user list
 				remove_user(dll_users, &serv_addr);
 
-				//remove user from all channels
+				//remove user from all channels on server
 				struct node* channelNode;
 				channelNode = dll_channels->next;
 				while(channelNode != NULL){
 					//remove user if contained in channel
 					remove_user(channelNode->inner, &serv_addr);
 
-					//if channel has no users AND channel has at most 1 serv in adj list
-					if((channelNode->inner->next == NULL) && (channelNode->adj_list->numNodesInList <= 1)){
-						//send serv leave to channelNodes' adj list
-						struct node* temp = channelNode->adj_list->next;
-						while (temp != NULL){
-							strcpy(s_leave->txt_channel, channelNode->data);
-							//printf("sending serv leave\n");
-							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)temp->serv_addr, sizeof(struct sockaddr_in));
-							if (flag == -1){
-								printf("FAILED TO SEND SERV_LEAVE in req_leave\n");
-							}
-							temp = temp->next;
-						}
-
-						// remove channel
-						remove_channel(channelNode->data, dll_channels);
-					}
 					channelNode = channelNode->next;
 				}
 				break;
@@ -323,7 +336,7 @@ int main(int argc, char *argv[]){
 						append(current->data, tempNode->adj_list, current->serv_addr);
 
 						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel);
-						printf("adj_serv_addr port: %d, host: %d\n", current->serv_addr->sin_port, current->serv_addr->sin_addr.s_addr);
+						//printf("adj_serv_addr port: %d, host: %d\n", current->serv_addr->sin_port, current->serv_addr->sin_addr.s_addr);
 						current = current->next;
 					}
 					free(s_join);
