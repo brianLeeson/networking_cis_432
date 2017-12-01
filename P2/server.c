@@ -257,14 +257,14 @@ int main(int argc, char *argv[]){
 				//sender
 				char send_buff[ADR_SIZE];
 				inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
-				int port = ntohs(serv_addr.sin_port);
+				int send_port = ntohs(serv_addr.sin_port);
 
 				//self
 				char self_buff[ADR_SIZE];
 				inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
 				int self_port = ntohs(serv_self->serv_addr->sin_port);
 
-				printf("%s:%d %s:%d recv Request Login User: %s\n", send_buff, port, self_buff, self_port, r_login->req_username);
+				printf("%s:%d %s:%d recv Request Login User: %s\n", self_buff, self_port, send_buff, send_port, r_login->req_username);
 
 				break;
 			}
@@ -278,14 +278,14 @@ int main(int argc, char *argv[]){
 				//sender
 				char send_buff[ADR_SIZE];
 				inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
-				int port = ntohs(serv_addr.sin_port);
+				int send_port = ntohs(serv_addr.sin_port);
 
 				//self
 				char self_buff[ADR_SIZE];
 				inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
 				int self_port = ntohs(serv_self->serv_addr->sin_port);
 
-				printf("%s:%d %s:%d recv Request Logout User: %s\n", send_buff, port, self_buff, self_port, currentUserNode->data);
+				printf("%s:%d %s:%d recv Request Logout User: %s\n", self_buff, self_port, send_buff, send_port, currentUserNode->data);
 
 				//remove user from user list
 				remove_user(dll_users, &serv_addr);
@@ -306,6 +306,19 @@ int main(int argc, char *argv[]){
 				struct node* tempNode;
 				char tempBuff[USERNAME_MAX];
 
+				//PRINT
+				//sender
+				char send_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+				int send_port = ntohs(serv_addr.sin_port);
+
+				//self
+				char self_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+				int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+				printf("%s:%d %s:%d recv Request Join Channel: %s\n", self_buff, self_port, send_buff, send_port, r_join->req_channel);
+
 				//if user not logged in
 				if(!loggedIn){
 					strcpy(t_error.txt_error, "Not logged in");
@@ -325,27 +338,37 @@ int main(int argc, char *argv[]){
 					s_join->serv_type = SERV_JOIN;
 					//send serv_join to adjacent servers
 					strcpy(s_join->txt_channel, r_join->req_channel);
-					struct node* current = serv_self->next;
-					while (current != NULL){
+					struct node* serv = dll_adjacency->next->next;
+					while (serv != NULL){
 						//send join to each server in server adj list
-						int flag = sendto(sockfd, s_join, sizeof(struct serv_join), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
+						int flag = sendto(sockfd, s_join, sizeof(struct serv_join), 0, (struct sockaddr*)serv->serv_addr, sizeof(struct sockaddr_in));
 						if (flag == -1){
 							printf("SEND FAILED\n");
 						}
-						//add each server in server adj list to new channels' adj list
-						append(current->data, tempNode->adj_list, current->serv_addr);
 
-						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel);
-						//printf("adj_serv_addr port: %d, host: %d\n", current->serv_addr->sin_port, current->serv_addr->sin_addr.s_addr);
-						current = current->next;
+						//PRINT
+						//sender
+						char send_buff[ADR_SIZE];
+						inet_ntop(AF_INET, &serv->serv_addr->sin_addr.s_addr, send_buff, ADR_SIZE);
+						int send_port = ntohs(serv->serv_addr->sin_port);
+
+						//self
+						char self_buff[ADR_SIZE];
+						inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+						int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+						printf("%s:%d %s:%d send S2S Join Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
+
+						//add each server in server adj list to new channels' adj list
+						append(serv->data, tempNode->adj_list, serv->serv_addr);
+
+						serv = serv->next;
 					}
 					free(s_join);
 				}
 
 				//finally channel is created, append user to it
 				append(tempBuff, tempNode->inner, &serv_addr);
-
-				printf("server: %s joins channel %s\n", tempBuff, tempNode->data);
 				break;
 			}
 			case REQ_LEAVE: { //leave
@@ -379,34 +402,18 @@ int main(int argc, char *argv[]){
 					break;
 				}
 
-				//remove empty channels
-				channelNode = dll_channels->next;
-				s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
-				s_leave->serv_type = SERV_LEAVE;
+				//PRINT
+				//sender
+				char send_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+				int port = ntohs(serv_addr.sin_port);
 
-				while(channelNode != NULL){
-					//if channel has no users AND channel has at most 1 serv in adj list
-					if((channelNode->inner->next == NULL) && (channelNode->adj_list->numNodesInList <= 1)){
-						//send serv leave to channelNodes' adj list
-						struct node* temp = channelNode->adj_list->next;
-						while (temp != NULL){
-							strcpy(s_leave->txt_channel, channelNode->data);
-							//printf("sending serv leave\n");
-							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)temp->serv_addr, sizeof(struct sockaddr_in));
-							if (flag == -1){
-								printf("FAILED TO SEND SERV_LEAVE in req_leave\n");
-							}
-							temp = temp->next;
-						}
+				//self
+				char self_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+				int self_port = ntohs(serv_self->serv_addr->sin_port);
 
-						//remove channel
-						remove_channel(channelNode->data, dll_channels);
-
-					}
-					channelNode = channelNode->next;
-				}
-				free(s_leave);
-				printf("server: %s leaves channel %s\n", currentUserNode->data, r_leave->req_channel);
+				printf("%s:%d %s:%d recv Request Leave Channel: %s\n", send_buff, port, self_buff, self_port, r_leave->req_channel);
 
 				break;
 			}
@@ -436,13 +443,39 @@ int main(int argc, char *argv[]){
 				//for each user in the channel, send the say msg to that user
 				userNode = channelNode->inner->next; //userNode is first user in channel
 
-				printf("server: %s sends say message in %s\n",currentUserNode->data ,r_say->req_channel);
+				//PRINT
+				//sender
+				char send_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+				int send_port = ntohs(serv_addr.sin_port);
+
+				//self
+				char self_buff[ADR_SIZE];
+				inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+				int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+				printf("%s:%d %s:%d recv Request Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, currentUserNode->data, r_say->req_channel, r_say->req_text);
+
 				while(userNode != NULL){ //send say to each user in channel
 					t_say.txt_type = TXT_SAY;
 					strcpy(t_say.txt_channel, r_say->req_channel);
 					strcpy(t_say.txt_username, currentUserNode->data);
 					strcpy(t_say.txt_text, r_say->req_text);
 					sendto(sockfd, &t_say, sizeof(struct text_say), 0, (struct sockaddr*)userNode->serv_addr,  sizeof(serv_addr));
+
+					//PRINT
+					//sender
+					char send_buff[ADR_SIZE];
+					inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+					int send_port = ntohs(serv_addr.sin_port);
+
+					//self
+					char self_buff[ADR_SIZE];
+					inet_ntop(AF_INET, &userNode->serv_addr->sin_addr, self_buff, ADR_SIZE);
+					int self_port = ntohs(userNode->serv_addr->sin_port);
+
+					printf("%s:%d %s:%d send Request Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, userNode->data, r_say->req_channel, r_say->req_text);
+
 					userNode = userNode->next;
 				}
 
@@ -464,11 +497,23 @@ int main(int argc, char *argv[]){
 					int flag = sendto(sockfd, s_say, sizeof(struct serv_say), 0, (struct sockaddr*)currentServer->serv_addr,  sizeof(serv_addr));
 					if (flag == -1){
 						printf("FAILED TO SEND SERV_SAY\n");
+						break;
 					}
+					//PRINT
+					//sender
+					char send_buff[ADR_SIZE];
+					inet_ntop(AF_INET, &currentServer->serv_addr->sin_addr.s_addr, send_buff, ADR_SIZE);
+					int send_port = ntohs(currentServer->serv_addr->sin_port);
+
+					//self
+					char self_buff[ADR_SIZE];
+					inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+					int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+					printf("%s:%d %s:%d send S2S Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, s_say->txt_username, s_say->txt_channel, s_say->txt_text);
 
 					currentServer = currentServer->next;
 				}
-
 
 				break;
 			}
@@ -555,7 +600,7 @@ int main(int argc, char *argv[]){
 				free(t_who);
 				break;
 			}
-			case SERV_JOIN:{ //TODO set isAlive for server to be 1
+			case SERV_JOIN:{
 				//cast to specific type
 				s_join = (struct serv_join*) gen_request_struct;
 
@@ -567,27 +612,38 @@ int main(int argc, char *argv[]){
 				if(channel == NULL){
 					channel = append(s_join->txt_channel, dll_channels, NULL);
 
-					//set channel adj list to be all adj channels and send join to all channels (but the one that sent us the join?)
-					struct node* current;
-					current = dll_adjacency->next->next;
-					while (current != NULL){
+					//set channel adj list to be all adj servers and send serv_join to all channels (but the one that sent us the join)
+					struct node* currentServer;
+					currentServer = dll_adjacency->next->next;
+					while (currentServer != NULL){
 						//add to channel adj list
-						append(current->data, channel->adj_list, current->serv_addr);
-						//send join to each channel in server adj list
-						int flag = sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
-						if (flag == -1){
-							printf("FAILED TO SEND SERV_JOIN\n");
-						}
-						printf("%s %s send S2S Join %s\n",serv_self->data, current->data, s_join->txt_channel);
-						current = current->next;
-					}
+						append(currentServer->data, channel->adj_list, currentServer->serv_addr);
+						//send join to each channel in server adj list, but the one that sent us join
+						if(!((currentServer->serv_addr->sin_port == serv_addr.sin_port) && (currentServer->serv_addr->sin_addr.s_addr == serv_addr.sin_addr.s_addr))){
+							int flag = sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)currentServer->serv_addr, sizeof(struct sockaddr_in));
+							if (flag == -1){
+								printf("FAILED TO SEND SERV_JOIN\n");
+							}
+							//PRINT
+							//sender
+							char send_buff[ADR_SIZE];
+							inet_ntop(AF_INET, &currentServer->serv_addr->sin_addr.s_addr, send_buff, ADR_SIZE);
+							int send_port = ntohs(currentServer->serv_addr->sin_port);
 
+							//self
+							char self_buff[ADR_SIZE];
+							inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+							int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+							printf("%s:%d %s:%d send S2S Join - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
+						}
+						currentServer = currentServer->next;
+					}
 				}
 				//else we are a member, set the isAlive of the server in the channel to 1.
 				else{
 					struct node* server = find_user(channel->adj_list, &serv_addr);
 					server->isAlive = 1;
-
 				}
 				break;
 			}
@@ -601,28 +657,21 @@ int main(int argc, char *argv[]){
 
 				//if we are subscribed to channel
 				if(channel != NULL){
+					//PRINT
+					//sender
+					char send_buff[ADR_SIZE];
+					inet_ntop(AF_INET, &adj_serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+					int send_port = ntohs(adj_serv_addr.sin_port);
+
+					//self
+					char self_buff[ADR_SIZE];
+					inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+					int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+					printf("%s:%d %s:%d recv S2S Leave - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_leave->txt_channel);
+
 					//remove server from the channel's adj list (if present)
 					remove_user(channel->adj_list, &serv_addr);
-
-					int adjLen = channel->adj_list->numNodesInList;
-					int clientLen = channel->inner->numNodesInList;
-					//if len of channel adj list <= 1 AND channel has no clients attached
-					if((adjLen <= 1) && (clientLen == 0)){
-						//send leave to servers in channels adj list
-						struct node* current;
-						current = channel->adj_list->next;
-						while (current != NULL){
-							int flag = sendto(sockfd, s_leave, sizeof(s_leave), 0, (struct sockaddr*)current->serv_addr, sizeof(struct sockaddr_in));
-							if (flag == -1){
-								printf("FAILED TO SEND SERV_LEAVE\n");
-							}
-
-							current = current->next;
-						}
-
-						//remove channel from channel list
-						remove_channel(channel->data, dll_channels);
-					}
 				}
 				break;
 			}
@@ -630,7 +679,7 @@ int main(int argc, char *argv[]){
 				//cast to specific type
 				s_say = (struct serv_say*) gen_request_struct;
 
-				//if new say msg
+				//check if duplicate UUID
 				int i;
 				int oldMessage = 0;
 				for (i = 0; i < ID_MAX; i++){
@@ -639,6 +688,11 @@ int main(int argc, char *argv[]){
 					}
 				}
 				struct node* channel = find_channel(s_say->txt_channel, dll_channels);
+				//if say to channel we aren't subscribed to, do nothing
+				if(channel == NULL){
+					break;
+				}
+
 				//if the server has users in the channel
 				if(channel->inner->next != NULL){
 					if (!oldMessage){
@@ -657,6 +711,19 @@ int main(int argc, char *argv[]){
 							if (flag == -1){
 								printf("FAILED TO SEND TEXT_SAY\n");
 							}
+							//PRINT
+							//sender
+							char send_buff[ADR_SIZE];
+							inet_ntop(AF_INET, &user->serv_addr->sin_addr.s_addr, send_buff, ADR_SIZE);
+							int send_port = ntohs(user->serv_addr->sin_port);
+
+							//self
+							char self_buff[ADR_SIZE];
+							inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+							int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+							printf("%s:%d %s:%d send S2S Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, s_say->txt_username, s_say->txt_channel, s_say->txt_text);
+
 							user = user->next;
 						}
 						//send serv_say to all adj servs in the channel BUT the one that sent us a serv_say
@@ -669,12 +736,26 @@ int main(int argc, char *argv[]){
 								if (flag == -1){
 									printf("FAILED TO SEND SERV_SAY\n");
 								}
+								//PRINT
+								//sender
+								char send_buff[ADR_SIZE];
+								inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+								int send_port = ntohs(serv_addr.sin_port);
+
+								//self
+								char self_buff[ADR_SIZE];
+								inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+								int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+								printf("%s:%d %s:%d send S2S Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, s_say->txt_username, s_say->txt_channel, s_say->txt_text);
+
 							}
 							currentServer = currentServer->next;
 						}
 					}
 					else{
-						//send leave
+						//duplicate say
+						//send leave to the one connection
 						s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
 						s_leave->serv_type = SERV_LEAVE;
 						strcpy(s_leave->txt_channel, s_say->txt_channel);
@@ -683,22 +764,55 @@ int main(int argc, char *argv[]){
 						if (flag == -1){
 							printf("FAILED TO SEND SERV_SAY\n");
 						}
+						//PRINT
+						//sender
+						char send_buff[ADR_SIZE];
+						inet_ntop(AF_INET, &adj_serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+						int send_port = ntohs(adj_serv_addr.sin_port);
+
+						//self
+						char self_buff[ADR_SIZE];
+						inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+						int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+						printf("%s:%d %s:%d Send S2S Leave - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_leave->txt_channel);
 
 						free(s_leave);
 					}
 				}
 				else{
-					//send leave
-					s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
-					s_leave->serv_type = SERV_LEAVE;
-					strcpy(s_leave->txt_channel, s_say->txt_channel);
+					//channel has no users
+					//if channel is a leaf:
+					if(channel->adj_list->numNodesInList >= 1){
+						//send leave to the one connection
+						s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
+						s_leave->serv_type = SERV_LEAVE;
+						strcpy(s_leave->txt_channel, s_say->txt_channel);
 
-					int flag = sendto(sockfd, s_leave, sizeof(struct serv_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
-					if (flag == -1){
-						printf("FAILED TO SEND SERV_SAY\n");
+						int flag = sendto(sockfd, s_leave, sizeof(struct serv_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+						if (flag == -1){
+							printf("FAILED TO SEND SERV_SAY\n");
+						}
+						//PRINT
+						//sender
+						char send_buff[ADR_SIZE];
+						inet_ntop(AF_INET, &adj_serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
+						int send_port = ntohs(adj_serv_addr.sin_port);
+
+						//self
+						char self_buff[ADR_SIZE];
+						inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+						int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+						printf("%s:%d %s:%d Send S2S Leave - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_leave->txt_channel);
+
+						//remove channel
+						remove_channel(channel->data, dll_channels);
+
+						free(s_leave);
 					}
 
-					free(s_leave);
+
 				}
 				break;
 			}
