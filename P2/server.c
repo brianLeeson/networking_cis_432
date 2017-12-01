@@ -63,13 +63,27 @@ static void onalrm(UNUSED int sig) {
 	s_join->serv_type = SERV_JOIN;
 
 	while(channel != NULL){
-		adj_server = channel->adj_list->next;
 		strcpy(s_join->txt_channel, channel->data);
+
+		adj_server = channel->adj_list->next;
 		while (adj_server != NULL){
 			flag = sendto(sockfd, s_join, sizeof(s_join), 0, (struct sockaddr*)adj_server->serv_addr, sizeof(struct sockaddr_in));
 			if (flag == -1){
 				printf("FAILED TO SEND SERV_JOIN in alarm\n");
 			}
+			//PRINT
+			//sender
+			char send_buff[ADR_SIZE];
+			inet_ntop(AF_INET, &adj_server->serv_addr->sin_addr.s_addr, send_buff, ADR_SIZE);
+			int send_port = ntohs(adj_server->serv_addr->sin_port);
+
+			//self
+			char self_buff[ADR_SIZE];
+			inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+			int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+			printf("%s:%d %s:%d send S2S Join - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_join->txt_channel);
+
 			//if this is a 2 minute timer, remove dead servers from channel adj list
 			if(!isMin){
 					//if server keep alive 1, set 0
@@ -81,7 +95,6 @@ static void onalrm(UNUSED int sig) {
 						remove_user(channel->adj_list, adj_server->serv_addr);
 					}
 			}
-
 			adj_server = adj_server->next;
 		}
 
@@ -119,7 +132,7 @@ int main(int argc, char *argv[]){
 	setSignalHandlers();
 
 	struct itimerval it_val;
-	it_val.it_value.tv_sec = 5;
+	it_val.it_value.tv_sec = 60;
 	it_val.it_value.tv_usec = 0;
 	it_val.it_interval = it_val.it_value;
 	if (setitimer(ITIMER_REAL, &it_val, NULL) == -1) {
@@ -139,10 +152,6 @@ int main(int argc, char *argv[]){
 	struct sockaddr_in adj_serv_addr;
 	struct hostent *adj_server_address;
 	for (i = 1; i < argc; i=i+2){
-
-		//printf("in for loop %d. argc is %d\n", i, argc);
-		//create server name
-		//printf("argv pair is %s and %s\n", argv[i], argv[i+1]);
 		strcat(serverName, argv[i]);
 		strcat(serverName, argv[i+1]);
 

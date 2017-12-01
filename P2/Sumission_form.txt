@@ -34,6 +34,8 @@ Answer the questions by selecting one of the given options. You may add addition
 - Does the client have all the functionality from program #1? yes/no 
 
 NOTES:
-
+I needed to do:
+sudo apt-get install uuid-dev
+for #include <uuid/uuid.h> to work.
  
 
