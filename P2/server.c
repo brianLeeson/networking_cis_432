@@ -350,7 +350,7 @@ int main(int argc, char *argv[]){
 				//if user not logged in
 				if(!loggedIn){
 					strcpy(t_error.txt_error, "Not logged in");
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -405,7 +405,7 @@ int main(int argc, char *argv[]){
 				//if user not logged in
 				if(!loggedIn){
 					strcpy(t_error.txt_error, "Not logged in");
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -418,7 +418,7 @@ int main(int argc, char *argv[]){
 					//No channel by the name
 					strcpy(t_error.txt_error, "No channel by the name ");
 					strcat(t_error.txt_error, r_leave->req_channel);
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -426,7 +426,7 @@ int main(int argc, char *argv[]){
 				if(remove_user(channelNode->inner, currentUserNode->serv_addr) == 0){
 					strcpy(t_error.txt_error, "Not a member of channel ");
 					strcat(t_error.txt_error, r_leave->req_channel);
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -451,7 +451,7 @@ int main(int argc, char *argv[]){
 				//if user not logged in
 				if(!loggedIn){
 					strcpy(t_error.txt_error, "Not logged in");
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -464,7 +464,7 @@ int main(int argc, char *argv[]){
 					printf("server: %s trying to send to users in non-existing channel %s\n", currentUserNode->data, r_say->req_channel);
 					strcpy(t_error.txt_error, "No channel by the name ");
 					strcat(t_error.txt_error, r_say->req_channel);
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -489,7 +489,7 @@ int main(int argc, char *argv[]){
 					strcpy(t_say.txt_channel, r_say->req_channel);
 					strcpy(t_say.txt_username, currentUserNode->data);
 					strcpy(t_say.txt_text, r_say->req_text);
-					sendto(sockfd, &t_say, sizeof(struct text_say), 0, (struct sockaddr*)userNode->serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_say, sizeof(struct text_say), 0, (struct sockaddr*)userNode->serv_addr,  sizeof(struct sockaddr_in));
 
 					//PRINT
 					//sender
@@ -519,7 +519,7 @@ int main(int argc, char *argv[]){
 				struct node* currentServer = channelNode->adj_list->next;
 				while(currentServer != NULL){
 					//send serv say
-					int flag = sendto(sockfd, s_say, sizeof(struct serv_say), 0, (struct sockaddr*)currentServer->serv_addr,  sizeof(serv_addr));
+					int flag = sendto(sockfd, s_say, sizeof(struct serv_say), 0, (struct sockaddr*)currentServer->serv_addr,  sizeof(struct sockaddr_in));
 					if (flag == -1){
 						printf("FAILED TO SEND SERV_SAY1\n");
 						//TODO REMOVE
@@ -563,7 +563,7 @@ int main(int argc, char *argv[]){
 				//if user not logged in
 				if(!loggedIn){
 					strcpy(t_error.txt_error, "Not logged in");
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -587,7 +587,7 @@ int main(int argc, char *argv[]){
 				}
 
 				//send to whoever just asked for list
-				sendto(sockfd, t_list, structSize, 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				sendto(sockfd, t_list, structSize, 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 				free(t_list);
 
 				break;
@@ -598,7 +598,7 @@ int main(int argc, char *argv[]){
 				//if user not logged in
 				if(!loggedIn){
 					strcpy(t_error.txt_error, "Not logged in");
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -610,7 +610,7 @@ int main(int argc, char *argv[]){
 					printf("server: %s trying to list users in non-existing channel %s\n", currentUserNode->data, r_who->req_channel);
 					strcpy(t_error.txt_error, "No channel by the name ");
 					strcat(t_error.txt_error, r_who->req_channel);
-					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+					sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 					break;
 				}
 
@@ -638,7 +638,7 @@ int main(int argc, char *argv[]){
 				}
 
 				//send to whoever just asked for who
-				sendto(sockfd, t_who, structSize, 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				sendto(sockfd, t_who, structSize, 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 				free(t_who);
 				break;
 			}
@@ -714,7 +714,10 @@ int main(int argc, char *argv[]){
 					printf("%s:%d %s:%d recv S2S Leave - Channel: %s\n", self_buff, self_port, send_buff, send_port, s_leave->txt_channel);
 
 					//remove server from the channel's adj list (if present)
-					remove_user(channel->adj_list, &serv_addr);
+					int flag = remove_user(channel->adj_list, &serv_addr);
+					if(flag == 0){
+						printf("error removing channel\n");
+					}
 				}
 				break;
 			}
@@ -754,7 +757,7 @@ int main(int argc, char *argv[]){
 							strcpy(t_say.txt_channel, s_say->txt_channel);
 							strcpy(t_say.txt_username, s_say->txt_username);
 							strcpy(t_say.txt_text, s_say->txt_text);
-							int flag = sendto(sockfd, &t_say, sizeof(struct text_say), 0, (struct sockaddr*)user->serv_addr,  sizeof(serv_addr));
+							int flag = sendto(sockfd, &t_say, sizeof(struct text_say), 0, (struct sockaddr*)user->serv_addr,  sizeof(struct sockaddr_in));
 							if (flag == -1){
 								printf("FAILED TO SEND TEXT_SAY\n");
 							}
@@ -769,7 +772,7 @@ int main(int argc, char *argv[]){
 							inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
 							int self_port = ntohs(serv_self->serv_addr->sin_port);
 
-							printf("%s:%d %s:%d send Test Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, s_say->txt_username, s_say->txt_channel, s_say->txt_text);
+							printf("%s:%d %s:%d send Text Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, s_say->txt_username, s_say->txt_channel, s_say->txt_text);
 
 							user = user->next;
 						}
@@ -779,15 +782,29 @@ int main(int argc, char *argv[]){
 							//if currentServer not the serv who sent to us
 							if(!((currentServer->serv_addr->sin_port == serv_addr.sin_port) && (currentServer->serv_addr->sin_addr.s_addr == serv_addr.sin_addr.s_addr))){
 								//send serv say
-								int flag = sendto(sockfd, s_say, sizeof(struct serv_say), 0, (struct sockaddr*)currentServer->serv_addr,  sizeof(serv_addr));
+								int flag = sendto(sockfd, s_say, sizeof(struct serv_say), 0, (struct sockaddr*)currentServer->serv_addr,  sizeof(struct sockaddr_in));
 								if (flag == -1){
 									printf("FAILED TO SEND SERV_SAY2\n");
+									//PRINT TODO REMOVE
+									printf("%d\n", currentServer->serv_addr->sin_addr.s_addr);
+									//sender
+									char send_buff[ADR_SIZE];
+									inet_ntop(AF_INET, &currentServer->serv_addr->sin_addr.s_addr, send_buff, ADR_SIZE);
+									int send_port = ntohs(currentServer->serv_addr->sin_port);
+
+									//self
+									char self_buff[ADR_SIZE];
+									inet_ntop(AF_INET, &serv_self->serv_addr->sin_addr, self_buff, ADR_SIZE);
+									int self_port = ntohs(serv_self->serv_addr->sin_port);
+
+									printf("%s:%d %s:%d send S2S Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, s_say->txt_username, s_say->txt_channel, s_say->txt_text);
+
 								}
 								//PRINT
 								//sender
 								char send_buff[ADR_SIZE];
-								inet_ntop(AF_INET, &serv_addr.sin_addr.s_addr, send_buff, ADR_SIZE);
-								int send_port = ntohs(serv_addr.sin_port);
+								inet_ntop(AF_INET, &currentServer->serv_addr->sin_addr.s_addr, send_buff, ADR_SIZE);
+								int send_port = ntohs(currentServer->serv_addr->sin_port);
 
 								//self
 								char self_buff[ADR_SIZE];
@@ -808,7 +825,7 @@ int main(int argc, char *argv[]){
 						s_leave->serv_type = SERV_LEAVE;
 						strcpy(s_leave->txt_channel, s_say->txt_channel);
 
-						int flag = sendto(sockfd, s_leave, sizeof(struct serv_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+						int flag = sendto(sockfd, s_leave, sizeof(struct serv_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 						if (flag == -1){
 							printf("FAILED TO SEND SERV_SAY3\n");
 						}
@@ -832,13 +849,14 @@ int main(int argc, char *argv[]){
 					printf("channel has no users \n");
 					//channel has no users
 					//if channel is a leaf:
-					if(channel->adj_list->numNodesInList >= 1){
+					if(channel->adj_list->numNodesInList <= 1){
+						printf("\tpruning\n");
 						//send leave to the one connection
 						s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
 						s_leave->serv_type = SERV_LEAVE;
 						strcpy(s_leave->txt_channel, s_say->txt_channel);
 
-						int flag = sendto(sockfd, s_leave, sizeof(struct serv_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+						int flag = sendto(sockfd, s_leave, sizeof(struct serv_leave), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 						if (flag == -1){
 							printf("FAILED TO SEND SERV_SAY4\n");
 						}
@@ -867,7 +885,7 @@ int main(int argc, char *argv[]){
 			}
 			default:{
 				//strcpy(t_error.txt_error, "Server couldn't match message type.");
-				//sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(serv_addr));
+				//sendto(sockfd, &t_error, sizeof(struct text_error), 0, (struct sockaddr*)&serv_addr,  sizeof(struct sockaddr_in));
 				fprintf(stderr, "ERROR - server: no matching struct type\n");
 			}
 		}

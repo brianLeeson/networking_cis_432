@@ -205,6 +205,7 @@ int remove_user(struct node* head, struct sockaddr_in* address) {
 	removeAll(current->inner);
 	if(current->serv_addr != NULL){
 		free(current->serv_addr);
+		current->serv_addr = NULL;
 	}
 	head->numNodesInList--;
 	free(current);
