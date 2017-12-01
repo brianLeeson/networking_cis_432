@@ -13,29 +13,24 @@ Student IDs:
 
 Answer the questions by selecting one of the given options. You may add additional information if you wish to.
 
-- Does the server broadcast Joins correctly when a user requests a Join? yes/no
+- Does the server broadcast Joins correctly when a user requests a Join? yes
  
 - Does the server broadcast Joins correctly when receiving a Join from another server? yes/no 
 
-- Does the server generate unique identifiers correctly? yes/no 
+- Does the server generate unique identifiers correctly? yes 
 
 - Does the server renew Joins once per minute? yes/no
   
 - Does the server remove Joins older than two minutes? yes/no
  
-- Does the server reply with a Leave message when it cannot forward a Say message? yes/no 
+- Does the server reply with a Leave message when it cannot forward a Say message? yes
 
-- Does the server reply with a Leave message when it receives a duplicate Say message? yes/no 
+- Does the server reply with a Leave message when it receives a duplicate Say message? yes
 
-- Does the server avoid sending inappropriate Join, Leave, or Say messages? yes/no   
+- Does the server avoid sending inappropriate Join, Leave, or Say messages? yes  
 
-- Does the server have all the functionality from program #1 when working in isolation? yes/no 
+- Does the server have all the functionality from program #1 when working in isolation? yes
 
-- Does the client have all the functionality from program #1? yes/no 
+- Does the client have all the functionality from program #1? yes
 
-NOTES:
-I needed to do:
-sudo apt-get install uuid-dev
-for #include <uuid/uuid.h> to work.
- 
 
