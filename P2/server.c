@@ -42,6 +42,7 @@ long long SAY_IDS[ID_MAX];
 int CUR_ID_POS = 0;
 int sockfd;
 int isMin = 1;
+int ALARMON = 1;
 
 void handleRead(int readResult){
 	if (readResult < 0){
@@ -53,26 +54,29 @@ void handleRead(int readResult){
 static void onalrm(UNUSED int sig) {
 	//on alarm called every TIME_PERIOD
 	signal(SIGINT, SIG_IGN);
-
-	//printf("received alarm \n");
-	//for each channel send join msgs to the servers adj list
+	if(!ALARMON){
+		return;
+	}
+	//for each channel send join msg for every adj server
 	struct node* channel = dll_channels->next;
-	struct node* adj_server;
-	int flag;
+	struct node* adj_server = dll_adjacency->next->next;
+	int flag=0;
 
 	struct serv_join* s_join = (struct serv_join*)malloc(sizeof(struct serv_join));
 	s_join->serv_type = SERV_JOIN;
 
-	//while(channel != NULL){
-	while(0){ //TODO SEGFAULTS
+	//printf("\t2. pre-while1\n");
+	while(channel != NULL){
 		strcpy(s_join->txt_channel, channel->data);
 
-		adj_server = channel->adj_list->next;
+		//printf("\t3. pre-while2\n");
 		while (adj_server != NULL){
+
 			flag = sendto(sockfd, s_join, sizeof(struct serv_join), 0, (struct sockaddr*)adj_server->serv_addr, sizeof(struct sockaddr_in));
 			if (flag == -1){
 				printf("FAILED TO SEND SERV_JOIN1 in alarm\n");
 			}
+
 			//PRINT
 			//sender
 			char send_buff[ADR_SIZE];
@@ -89,22 +93,32 @@ static void onalrm(UNUSED int sig) {
 
 
 			//if this is a 2 minute timer, remove dead servers from channel adj list
-			if(!isMin){
+			if(isMin){
+				struct node* channel_serv = channel->adj_list->next;
+				while(channel_serv != NULL){
 					//if server keep alive 1, set 0
-					if(adj_server->isAlive == 1){
-						adj_server->isAlive = 0;
+					if(channel_serv->isAlive == 1){
+						channel_serv->isAlive = 0;
+						channel_serv = channel_serv->next;
 					}
 					//if server keep alive 0, remove server form channels adj list
 					else{
-						remove_user(channel->adj_list, adj_server->serv_addr);
+						struct node* temp = channel_serv->next;
+						remove_user(channel->adj_list, channel_serv->serv_addr);
+						channel_serv = temp;
 					}
+
+				}
 			}
 			adj_server = adj_server->next;
 		}
-
-		channel = channel->next;
+		if(channel != NULL){
+			channel = channel->next;
+		}
+		s_join->txt_channel[0] = '\0';
 	}
 	isMin = !isMin;
+	free(s_join);
 	signal(SIGINT, SIG_DFL);
 }
 
@@ -539,7 +553,6 @@ int main(int argc, char *argv[]){
 						printf("%s:%d %s:%d send S2S Say - User: %s Channel: %s Msg: \"%s\"\n", self_buff, self_port, send_buff, send_port, s_say->txt_username, s_say->txt_channel, s_say->txt_text);
 						break;
 					}
-					printf("send success\n");
 					//PRINT
 					//sender
 					char send_buff[ADR_SIZE];
@@ -686,7 +699,10 @@ int main(int argc, char *argv[]){
 				//else we are a member, set the isAlive of the server in the channel to 1.
 				else{
 					struct node* server = find_user(channel->adj_list, &serv_addr);
-					server->isAlive = 1;
+					if(server!=NULL){
+						server->isAlive = 1;
+					}
+
 				}
 				break;
 			}
@@ -722,10 +738,10 @@ int main(int argc, char *argv[]){
 				break;
 			}
 			case SERV_SAY:{
-				printf("received s2s say\n");
+				//printf("received s2s say\n");
 				//cast to specific type
 				s_say = (struct serv_say*) gen_request_struct;
-				printf("UUID IS %lld\n", s_say->UID);
+				//printf("UUID IS %lld\n", s_say->UID);
 
 				//check if duplicate UUID
 				int i;
@@ -740,7 +756,7 @@ int main(int argc, char *argv[]){
 
 				if (oldMessage || (channel == NULL)){
 					//duplicate or wrong say
-					printf("old msg\n");
+					//printf("old msg\n");
 					//send leave to the one connection
 					s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
 					s_leave->serv_type = SERV_LEAVE;
@@ -766,7 +782,7 @@ int main(int argc, char *argv[]){
 					free(s_leave);
 					break;
 				}
-				printf("not old msg\n");
+				//printf("not old msg\n");
 				//add UUID to list
 				SAY_IDS[CUR_ID_POS] = s_say->UID;
 				CUR_ID_POS = (CUR_ID_POS + 1) % ID_MAX;
@@ -814,7 +830,7 @@ int main(int argc, char *argv[]){
 
 				//if the server has users in the channel
 				if(channel->inner->next != NULL){
-					printf("server has users in channel\n");
+					//printf("server has users in channel\n");
 
 					//send say msg to all users in the channel
 					struct node* user = channel->inner->next;
@@ -844,11 +860,11 @@ int main(int argc, char *argv[]){
 					}
 				}
 				else{
-					printf("channel has no users \n");
+					//printf("channel has no users \n");
 					//channel has no users
 					//if channel is a leaf:
 					if(channel->adj_list->numNodesInList <= 1){
-						printf("\tpruning\n");
+						//printf("\tpruning\n");
 						//send leave to the one connection
 						s_leave = (struct serv_leave*) malloc(sizeof(struct serv_leave));
 						s_leave->serv_type = SERV_LEAVE;
